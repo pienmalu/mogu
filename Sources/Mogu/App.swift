@@ -1,13 +1,13 @@
 import AppKit
 
-/// 入口。メニューバーにだけ出て、Dock には出さない。
+/// 入口。Dock とメニューバーの両方に出る。
 @main
 enum MoguMain {
     static func main() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
-        app.setActivationPolicy(.accessory)
+        app.setActivationPolicy(.regular)
         app.run()
     }
 }
@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller?.shutdown()
     }
 
+    /// Dock のアイコンを押したときは、窓を出す。
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         controller?.showWindow()
         return false
