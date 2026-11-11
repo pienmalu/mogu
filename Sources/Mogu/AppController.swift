@@ -5,7 +5,7 @@ import SwiftUI
 /// 部品をつなぐ。メニューバーの項目、ホットキー、窓、一覧、エディタ。
 @MainActor
 final class AppController: NSObject, NSMenuDelegate {
-    static var appName: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Fude" }
+    static var appName: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Mogu" }
 
     private var store: NoteStore!
     private var editor: EditorController!

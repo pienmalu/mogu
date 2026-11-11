@@ -100,7 +100,7 @@ final class LLMServer {
     /// 落ちたときに残ったサーバーを、次に起動したとき片付けるための記録。
     private var pidFile: URL {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(Bundle.main.bundleIdentifier ?? "dev.haruka.fude")
+            .appendingPathComponent(Bundle.main.bundleIdentifier ?? "dev.haruka.mogu")
         try? FileManager.default.createDirectory(at: caches, withIntermediateDirectories: true)
         return caches.appendingPathComponent("llama-server.pid")
     }
@@ -111,7 +111,7 @@ final class LLMServer {
     }
 
     static func locateHome() -> URL {
-        let path = Bundle.main.object(forInfoDictionaryKey: "FudeHome") as? String ?? ""
+        let path = Bundle.main.object(forInfoDictionaryKey: "MoguHome") as? String ?? ""
         return URL(fileURLWithPath: path.isEmpty || path.hasPrefix("__") ? FileManager.default.currentDirectoryPath : path)
     }
 

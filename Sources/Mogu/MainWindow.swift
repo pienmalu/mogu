@@ -24,7 +24,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
 
         split.addSplitViewItem(sidebarItem)
         split.addSplitViewItem(editorItem)
-        split.splitView.autosaveName = "FudeSplit"
+        split.splitView.autosaveName = "MoguSplit"
 
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 620),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -36,7 +36,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
         window.setContentSize(NSSize(width: 920, height: 620))
         window.minSize = NSSize(width: 420, height: 300)
         window.center()
-        window.setFrameAutosaveName("FudeMain")
+        window.setFrameAutosaveName("MoguMain")
         window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]  // 今いるデスクトップ（フルスクリーンの上も）に出す
         super.init()
         window.delegate = self

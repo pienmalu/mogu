@@ -8,7 +8,7 @@ final class EditorTests: XCTestCase {
 
     override func setUp() async throws {
         let tmp = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TMPDIR"] ?? NSTemporaryDirectory())
-        folder = tmp.appendingPathComponent("fude-tests-\(UUID().uuidString)")
+        folder = tmp.appendingPathComponent("mogu-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     }
 
@@ -108,7 +108,7 @@ final class EditorTests: XCTestCase {
         editor.newNote()
         type(editor, "# 見出し\n**太字**と`コード`")
         editor.textView.selectAll(nil)
-        let pasteboard = NSPasteboard(name: NSPasteboard.Name("fude-test-\(UUID().uuidString)"))
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("mogu-test-\(UUID().uuidString)"))
         XCTAssertTrue(editor.textView.writeSelection(to: pasteboard, types: editor.textView.writablePasteboardTypes))
         XCTAssertEqual(pasteboard.string(forType: .string), "# 見出し\n**太字**と`コード`")
         XCTAssertNil(pasteboard.data(forType: .rtf), "書式つきの形では渡さない")
@@ -129,7 +129,7 @@ final class EditorTests: XCTestCase {
 final class EditorConflictTests: XCTestCase {
     func testTouchedButSameBodyIsNotConflict() throws {
         let tmp = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TMPDIR"] ?? NSTemporaryDirectory())
-        let folder = tmp.appendingPathComponent("fude-tests-\(UUID().uuidString)")
+        let folder = tmp.appendingPathComponent("mogu-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
         let url = folder.appendingPathComponent("同期.md")
@@ -151,7 +151,7 @@ final class EditorConflictTests: XCTestCase {
 final class ComposingTests: XCTestCase {
     func testComposingIsNotDisturbed() throws {
         let tmp = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TMPDIR"] ?? NSTemporaryDirectory())
-        let folder = tmp.appendingPathComponent("fude-tests-\(UUID().uuidString)")
+        let folder = tmp.appendingPathComponent("mogu-tests-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
         let editor = EditorController(folder: folder)

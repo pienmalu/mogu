@@ -141,7 +141,7 @@ enum RenderMain {
     // MARK: - 補助
 
     static func scratchFolder() -> URL {
-        let folder = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("fude-render-\(UUID().uuidString)")
+        let folder = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("mogu-render-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         return folder
     }

@@ -1,7 +1,8 @@
-# Fude
+# Mogu
 
 メニューバーに常駐するメモ帳（macOS 14 以降・Apple Silicon・自分用）。
 ノートはただの `.md` ファイルとしてフォルダに置くので、Obsidian や Finder、git からもそのまま扱える。
+名前は、殴り書きを「もぐもぐ」噛み砕いて文にすることから。音声入力の [Poko](../koe) と対になる。
 殴り書きは、Mac の中で動く Gemma 4 に推敲させられる。文字は外に送らない。
 
 [inseven/thoughts](https://github.com/inseven/thoughts)（MIT）からの fork。
@@ -46,7 +47,7 @@
 箇条書きの行で Enter を押すと、次の行にも記号が入る（空の行でもう一度押すと抜ける）。
 リンクは ⌘クリックで開く（ふつうのクリックはカーソルを置くだけ）。
 
-色と大きさは `Sources/Fude/Theme.swift` だけで変えられる。
+色と大きさは `Sources/Mogu/Theme.swift` だけで変えられる。
 
 ## 推敲
 
@@ -80,4 +81,4 @@ E2B を使うときは `./scripts/setup.sh e2b` で取ってくる。
 ./tools/try-rewrite.sh e4b < 下書き.txt  # アプリと同じ経路で推敲を試す
 ```
 
-アプリ名と bundle ID は `scripts/build-app.sh` の先頭 2 行で変えられる。ホットキーは `Sources/Fude/GlobalHotKey.swift` の先頭。
+アプリ名と bundle ID は `scripts/build-app.sh` の先頭 2 行で変えられる。ホットキーは `Sources/Mogu/GlobalHotKey.swift` の先頭。

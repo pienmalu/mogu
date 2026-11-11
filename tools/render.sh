@@ -6,8 +6,8 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 TMP="${TMPDIR:-/tmp}"
 mkdir -p "$ROOT/build"
-swiftc -parse-as-library -swift-version 5 -target arm64-apple-macosx14.0 -module-name FudeRender \
-  -module-cache-path "$TMP/fude-module-cache" \
-  $(ls "$ROOT"/Sources/Fude/*.swift | grep -v /App.swift) "$ROOT/tools/Render.swift" \
-  -o "$ROOT/build/fude-render"
-"$ROOT/build/fude-render" "$@"
+swiftc -parse-as-library -swift-version 5 -target arm64-apple-macosx14.0 -module-name MoguRender \
+  -module-cache-path "$TMP/mogu-module-cache" \
+  $(ls "$ROOT"/Sources/Mogu/*.swift | grep -v /App.swift) "$ROOT/tools/Render.swift" \
+  -o "$ROOT/build/mogu-render"
+"$ROOT/build/mogu-render" "$@"

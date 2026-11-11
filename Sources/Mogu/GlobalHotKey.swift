@@ -22,7 +22,7 @@ final class GlobalHotKey {
             DispatchQueue.main.async { hotKey.action() }
             return noErr
         }, 1, &spec, me, &handlerRef)
-        let id = EventHotKeyID(signature: OSType(0x4655_4445), id: 1)  // "FUDE"
+        let id = EventHotKeyID(signature: OSType(0x4D4F_4755), id: 1)  // "MOGU"
         let status = RegisterEventHotKey(keyCode, modifiers, id, GetApplicationEventTarget(), 0, &hotKeyRef)
         guard status == noErr else {
             NSLog("ホットキーを登録できませんでした（ほかのアプリが使っているかもしれません）: \(status)")

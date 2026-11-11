@@ -1,4 +1,4 @@
-# Fude
+# Mogu
 
 メニューバー常駐のメモ帳（macOS 14+、Apple Silicon、自分用）。ノートは `.md` ファイル、推敲はローカルの Gemma 4。使い方と構成は README.md。
 

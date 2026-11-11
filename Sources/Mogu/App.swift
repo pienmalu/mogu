@@ -2,7 +2,7 @@ import AppKit
 
 /// 入口。メニューバーにだけ出て、Dock には出さない。
 @main
-enum FudeMain {
+enum MoguMain {
     static func main() {
         let app = NSApplication.shared
         let delegate = AppDelegate()

@@ -5,8 +5,8 @@ cd "$(dirname "$0")/.."
 ROOT="$PWD"
 TMP="${TMPDIR:-/tmp}"
 mkdir -p "$ROOT/build"
-swiftc -parse-as-library -swift-version 5 -target arm64-apple-macosx14.0 -module-name FudeTry \
-  -module-cache-path "$TMP/fude-module-cache" \
-  $(ls "$ROOT"/Sources/Fude/*.swift | grep -v /App.swift) "$ROOT/tools/TryRewrite.swift" \
-  -o "$ROOT/build/fude-try-rewrite"
-"$ROOT/build/fude-try-rewrite" "$@"
+swiftc -parse-as-library -swift-version 5 -target arm64-apple-macosx14.0 -module-name MoguTry \
+  -module-cache-path "$TMP/mogu-module-cache" \
+  $(ls "$ROOT"/Sources/Mogu/*.swift | grep -v /App.swift) "$ROOT/tools/TryRewrite.swift" \
+  -o "$ROOT/build/mogu-try-rewrite"
+"$ROOT/build/mogu-try-rewrite" "$@"

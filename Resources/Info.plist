@@ -24,7 +24,7 @@
     <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
-    <key>FudeHome</key>
+    <key>MoguHome</key>
     <string>__HOME__</string>
 </dict>
 </plist>

@@ -168,10 +168,10 @@ enum MarkdownStyler {
         case .code:
             storage.addAttribute(.font, value: theme.monoFont, range: r)
             // 下地は BlockLayoutManager が文字の高さだけ描く（.backgroundColor だと行の高さまで伸びる）
-            storage.addAttribute(.fudeInlineCode, value: true, range: r)
+            storage.addAttribute(.moguInlineCode, value: true, range: r)
         case .codeBlock:
             storage.addAttribute(.font, value: theme.monoFont, range: r)
-            storage.addAttribute(.fudeBlock, value: "code", range: r)
+            storage.addAttribute(.moguBlock, value: "code", range: r)
             storage.addAttribute(.paragraphStyle, value: theme.codeParagraph, range: r)
         case .quote:
             storage.addAttribute(.foregroundColor, value: theme.secondaryColor, range: r)
@@ -179,7 +179,7 @@ enum MarkdownStyler {
             // 続く引用の行と縦線がつながるよう、行末の改行まで含める
             let ns = storage.string as NSString
             let withNewline = NSMaxRange(r) < ns.length && ns.character(at: NSMaxRange(r)) == 10
-            storage.addAttribute(.fudeBlock, value: "quote", range: NSRange(location: r.location, length: r.length + (withNewline ? 1 : 0)))
+            storage.addAttribute(.moguBlock, value: "quote", range: NSRange(location: r.location, length: r.length + (withNewline ? 1 : 0)))
         case .list(let indent):
             let prefix = (storage.string as NSString).substring(with: NSRange(location: r.location, length: min(indent, r.length)))
             storage.addAttribute(.paragraphStyle, value: theme.listParagraph(prefix: prefix), range: r)
@@ -190,7 +190,7 @@ enum MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: theme.accentColor, range: r)
             // .link にすると、クリックしただけで開いてしまい、リンクの中にカーソルを置けない。開くのは ⌘クリック
             if let url = URL(string: target), url.scheme != nil {
-                storage.addAttribute(.fudeLink, value: url, range: r)
+                storage.addAttribute(.moguLink, value: url, range: r)
             }
         case .tag:
             storage.addAttribute(.foregroundColor, value: theme.accentColor, range: r)

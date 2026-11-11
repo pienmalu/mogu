@@ -2,11 +2,11 @@ import AppKit
 
 extension NSAttributedString.Key {
     /// 行のまとまりに描く飾り（"code" = 全幅の背景、"quote" = 左の縦線）。文字には影響しない。
-    static let fudeBlock = NSAttributedString.Key("FudeBlock")
+    static let moguBlock = NSAttributedString.Key("MoguBlock")
     /// インラインのコード（文字の高さだけの下地を描く）。
-    static let fudeInlineCode = NSAttributedString.Key("FudeInlineCode")
+    static let moguInlineCode = NSAttributedString.Key("MoguInlineCode")
     /// ⌘クリックで開くリンク先。
-    static let fudeLink = NSAttributedString.Key("FudeLink")
+    static let moguLink = NSAttributedString.Key("MoguLink")
 }
 
 /// 行の高さをそろえ、文字の後ろに飾りを描く：コードブロックの下地（本文の幅いっぱい）、引用の縦線、インラインコードの下地。
@@ -70,11 +70,11 @@ final class BlockLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         let theme = Theme.shared
         let ns = storage.string as NSString
 
-        storage.enumerateAttribute(.fudeBlock, in: characters) { value, range, _ in
+        storage.enumerateAttribute(.moguBlock, in: characters) { value, range, _ in
             guard let kind = value as? String else { return }
             // 見えている部分だけでなく、まとまり全体の形で描く（角の丸みが途中で出ないように）
             var block = range
-            _ = storage.attribute(.fudeBlock, at: range.location, longestEffectiveRange: &block,
+            _ = storage.attribute(.moguBlock, at: range.location, longestEffectiveRange: &block,
                                   in: NSRange(location: 0, length: storage.length))
             // 最後の改行は次の行の頭に見えるので含めない
             if block.length > 1, ns.character(at: NSMaxRange(block) - 1) == 10 { block.length -= 1 }
@@ -102,7 +102,7 @@ final class BlockLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         }
 
         // インラインコード：行の高さではなく、文字の高さだけの下地
-        storage.enumerateAttribute(.fudeInlineCode, in: characters) { value, range, _ in
+        storage.enumerateAttribute(.moguInlineCode, in: characters) { value, range, _ in
             guard value != nil else { return }
             let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont ?? theme.monoFont
             let height = ceil(font.ascender - font.descender) + 4

@@ -27,7 +27,7 @@ final class MarkdownTextView: NSTextView {
         let point = convert(event.locationInWindow, from: nil)
         let index = characterIndexForInsertion(at: point)
         for candidate in [index, index - 1] where candidate >= 0 && candidate < storage.length {
-            if let url = storage.attribute(.fudeLink, at: candidate, effectiveRange: nil) as? URL { return url }
+            if let url = storage.attribute(.moguLink, at: candidate, effectiveRange: nil) as? URL { return url }
         }
         return nil
     }
