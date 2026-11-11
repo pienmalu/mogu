@@ -36,7 +36,7 @@ final class BlockLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         guard range != revealed, let storage = textStorage else { return }
         let old = revealed
         revealed = range
-        for changed in [old, range] where changed.location != NSNotFound {
+        for changed in [old, range] {
             let clamped = NSIntersectionRange(changed, NSRange(location: 0, length: storage.length))
             guard clamped.length > 0 || changed.location < storage.length else { continue }
             invalidateGlyphs(forCharacterRange: clamped, changeInLength: 0, actualCharacterRange: nil)
@@ -65,8 +65,7 @@ final class BlockLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     }
 
     private func isRevealed(_ index: Int) -> Bool {
-        guard revealed.location != NSNotFound else { return false }
-        return NSLocationInRange(index, revealed) || (revealed.length == 0 && index == revealed.location)
+        NSLocationInRange(index, revealed) || (revealed.length == 0 && index == revealed.location)
     }
 
     /// 隠した記号は幅ゼロで、描かない。本物の制御文字（改行・タブ）はふつうに扱う。

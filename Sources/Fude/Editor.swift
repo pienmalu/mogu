@@ -115,23 +115,6 @@ final class MarkdownTextView: NSTextView {
         }
     }
 
-    /// 入力の焦点が来た・離れたとき（記号を見せる・隠すを切り替える）。
-    var onFocusChange: (() -> Void)?
-
-    override func becomeFirstResponder() -> Bool {
-        let accepted = super.becomeFirstResponder()
-        if accepted { onFocusChange?() }
-        return accepted
-    }
-
-    override func resignFirstResponder() -> Bool {
-        let accepted = super.resignFirstResponder()
-        if accepted { DispatchQueue.main.async { [weak self] in self?.onFocusChange?() } }
-        return accepted
-    }
-
-    var isFocused: Bool { window?.firstResponder === self }
-
     /// ペーストは常に文字だけ（Web やほかのアプリの書式を持ち込まない）。
     override func paste(_ sender: Any?) {
         pasteAsPlainText(sender)
@@ -206,7 +189,6 @@ final class EditorController: NSObject, NSTextViewDelegate {
         scrollView.documentView = textView
         super.init()
         textView.delegate = self
-        textView.onFocusChange = { [weak self] in self?.revealCurrentLines() }
 
         statusLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         statusLabel.textColor = Theme.shared.inkSecondary
@@ -263,11 +245,6 @@ final class EditorController: NSObject, NSTextViewDelegate {
     /// カーソル（か選択）のある行だけ、隠していた記号を見せる。変換中は触らない。
     func revealCurrentLines() {
         guard !textView.hasMarkedText(), let layout = textView.layoutManager as? BlockLayoutManager else { return }
-        // 本文に焦点がないとき（一覧を見ているときなど）は、どの行も整えた見た目にする
-        guard textView.isFocused else {
-            layout.reveal(NSRange(location: NSNotFound, length: 0))
-            return
-        }
         let ns = textView.string as NSString
         let selection = textView.selectedRange()
         let safe = NSRange(location: min(selection.location, ns.length), length: min(selection.length, ns.length - min(selection.location, ns.length)))
