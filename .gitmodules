@@ -1,8 +1,0 @@
-[submodule "HighlightedTextEditor"]
-	path = macos/dependencies/HighlightedTextEditor
-	url = https://github.com/jbmorley/HighlightedTextEditor.git
-	branch = thoughts-main
-[submodule "docs/_theme"]
-	path = docs/_theme
-	url = https://github.com/jbmorley/showcase-theme.git
-	branch = main

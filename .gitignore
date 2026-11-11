@@ -1,6 +1,5 @@
-_site
-.jekyll-cache
-/build
-/docs/current.json
-/docs/releases
-/docs/vendor
+# ビルド物と、setup.sh が取ってくるもの（llama.cpp とモデル）
+build/
+vendor/
+models/
+.DS_Store
