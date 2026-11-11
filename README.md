@@ -5,7 +5,7 @@ Dock とメニューバーから開けるメモ帳（macOS 14 以降、Apple Sil
 殴り書きは Mac の中で動く Gemma 4 に推敲させられる。
 文字は外に送らない。
 名前は殴り書きを「もぐもぐ」噛み砕いて文にすることから付けた。
-音声入力の [Poko](../poko) と対になる。
+音声入力の [Poko](https://github.com/pienmalu/poko) と対になる。
 
 [inseven/thoughts](https://github.com/inseven/thoughts)（MIT）からの fork。
 ただし中身は書き直していて、上流の変更はもう取り込めない。
