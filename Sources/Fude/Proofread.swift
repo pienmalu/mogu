@@ -107,18 +107,4 @@ enum Proofread {
         guard text.count == 2 else { return false }
         return !text.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) || (0x3400...0x4DBF).contains($0.value) }
     }
-
-    /// 変わった字数（削った字と足した字の多い方の合計）。
-    static func changedCount(_ pieces: [Piece]) -> Int {
-        var count = 0
-        var pendingDeleted = 0
-        for piece in pieces {
-            switch piece {
-            case .deleted(let text): pendingDeleted = text.count
-            case .inserted(let text): count += max(text.count, pendingDeleted); pendingDeleted = 0
-            case .same: count += pendingDeleted; pendingDeleted = 0
-            }
-        }
-        return count + pendingDeleted
-    }
 }
