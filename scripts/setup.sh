@@ -8,7 +8,11 @@ ROOT="$PWD"
 LLAMA_TAG="b12110"   # Gemma 4 が動くことを確かめた版。上げるときは推敲を試してから
 WHICH="${1:-e4b}"
 
-mkdir -p "$ROOT/vendor" "$ROOT/models"
+# モデルの実体は、ほかのアプリとも共有するフォルダに置き、models/ にはリンクだけを張る。
+# 置き場所は LLAMA_MODEL_DIR で変えられる（既定は ~/models/llama.cpp）。
+SHARED="${LLAMA_MODEL_DIR:-$HOME/models/llama.cpp}"
+
+mkdir -p "$ROOT/vendor" "$ROOT/models" "$SHARED"
 
 if [[ ! -x "$ROOT/vendor/llama-$LLAMA_TAG/llama-server" ]]; then
   echo "llama.cpp $LLAMA_TAG を取ってきます"
@@ -22,14 +26,18 @@ ln -sfn "llama-$LLAMA_TAG" "$ROOT/vendor/llama"
 
 fetch() {
   local name="gemma-4-$1-it-Q4_K_M.gguf"
-  if [[ -f "$ROOT/models/$name" ]]; then
+  if [[ -f "$SHARED/$name" ]]; then
     echo "$name はあります"
-    return
+  elif [[ -f "$ROOT/models/$name" && ! -L "$ROOT/models/$name" ]]; then
+    echo "$name を $SHARED に移します"  # 前の版の setup.sh が models/ に直接置いたもの
+    mv "$ROOT/models/$name" "$SHARED/$name"
+  else
+    echo "$name を取ってきます"
+    curl -fL --progress-bar -o "$SHARED/$name.part" \
+      "https://huggingface.co/unsloth/gemma-4-$1-it-GGUF/resolve/main/$name"
+    mv "$SHARED/$name.part" "$SHARED/$name"
   fi
-  echo "$name を取ってきます"
-  curl -fL --progress-bar -o "$ROOT/models/$name.part" \
-    "https://huggingface.co/unsloth/gemma-4-$1-it-GGUF/resolve/main/$name"
-  mv "$ROOT/models/$name.part" "$ROOT/models/$name"
+  ln -sf "$SHARED/$name" "$ROOT/models/$name"
 }
 
 case "$WHICH" in
