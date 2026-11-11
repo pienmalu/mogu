@@ -12,6 +12,7 @@ enum MarkdownStyler {
         case done            // 済んだチェック項目
         case link(String)
         case rule            // 水平線
+        case blank           // 空行（段落の切れ目）
     }
 
     struct Span: Equatable {
@@ -63,6 +64,10 @@ enum MarkdownStyler {
                 continue
             }
             if inFence { continue }
+            if trimmed.isEmpty {
+                spans.append(Span(range: lineRange, style: .blank))
+                continue
+            }
             spans += lineSpans(ns, content)
         }
         if inFence {  // 閉じていない囲みは、最後までコードとして見せる
@@ -157,23 +162,30 @@ enum MarkdownStyler {
             storage.addAttribute(.font, value: theme.headingFont(level), range: r)
             storage.addAttribute(.paragraphStyle, value: theme.headingParagraph(level), range: r)
         case .marker:
-            storage.addAttribute(.foregroundColor, value: theme.markerColor, range: r)
+            storage.addAttribute(.foregroundColor, value: theme.inkFaint, range: r)
         case .bold:
-            addTrait(.boldFontMask, storage, r)
+            storage.enumerateAttribute(.font, in: r) { value, sub, _ in
+                guard let font = value as? NSFont else { return }
+                // 本文の大きさなら文久ゴシックの太字、見出しなどはそのまま太らせる
+                let bold = abs(font.pointSize - theme.fontSize) < 0.5 && !font.isFixedPitch
+                    ? theme.boldFont : NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask)
+                storage.addAttribute(.font, value: bold, range: sub)
+            }
         case .italic:
-            addTrait(.italicFontMask, storage, r)
+            // 和文に斜体はないので、字形ごと少し傾ける
+            storage.addAttribute(.obliqueness, value: 0.16, range: r)
         case .strike:
             storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: r)
-            storage.addAttribute(.foregroundColor, value: theme.secondaryColor, range: r)
+            storage.addAttribute(.foregroundColor, value: theme.inkSecondary, range: r)
         case .code:
             storage.addAttribute(.font, value: theme.monoFont, range: r)
-            storage.addAttribute(.backgroundColor, value: theme.codeBackground, range: r)
+            storage.addAttribute(.fudeInlineCode, value: true, range: r)
         case .codeBlock:
             storage.addAttribute(.font, value: theme.monoFont, range: r)
             storage.addAttribute(.fudeBlock, value: "code", range: r)
             storage.addAttribute(.paragraphStyle, value: theme.codeParagraph, range: r)
         case .quote:
-            storage.addAttribute(.foregroundColor, value: theme.secondaryColor, range: r)
+            storage.addAttribute(.foregroundColor, value: theme.inkSecondary, range: r)
             storage.addAttribute(.paragraphStyle, value: theme.quoteParagraph, range: r)
             // 続く引用の行と縦線がつながるよう、行末の改行まで含める
             let ns = storage.string as NSString
@@ -184,24 +196,23 @@ enum MarkdownStyler {
             storage.addAttribute(.paragraphStyle, value: theme.listParagraph(prefix: prefix), range: r)
         case .done:
             storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: r)
-            storage.addAttribute(.foregroundColor, value: theme.tertiaryColor, range: r)
+            storage.addAttribute(.strikethroughColor, value: theme.inkFaint, range: r)
+            storage.addAttribute(.foregroundColor, value: theme.inkSecondary, range: r)
         case .link(let target):
-            storage.addAttribute(.foregroundColor, value: theme.accentColor, range: r)
-            // .link にすると、クリックしただけで開いてしまい、リンクの中にカーソルを置けない。開くのは ⌘クリック
+            // 記号がなくても見分けられるよう、細い下線を引く。開くのは ⌘クリック
+            storage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: r)
+            storage.addAttribute(.underlineColor, value: theme.inkFaint, range: r)
             if let url = URL(string: target), url.scheme != nil {
                 storage.addAttribute(.fudeLink, value: url, range: r)
             }
         case .tag:
-            storage.addAttribute(.foregroundColor, value: theme.accentColor, range: r)
+            storage.addAttribute(.foregroundColor, value: theme.inkSecondary, range: r)
         case .rule:
-            storage.addAttribute(.foregroundColor, value: theme.tertiaryColor, range: r)
+            storage.addAttribute(.foregroundColor, value: theme.inkFaint, range: r)
+            storage.addAttribute(.fudeBlock, value: "rule", range: r)
+        case .blank:
+            storage.addAttribute(.paragraphStyle, value: theme.blankParagraph, range: r)
         }
     }
 
-    private static func addTrait(_ trait: NSFontTraitMask, _ storage: NSTextStorage, _ range: NSRange) {
-        storage.enumerateAttribute(.font, in: range) { value, sub, _ in
-            guard let font = value as? NSFont else { return }
-            storage.addAttribute(.font, value: NSFontManager.shared.convert(font, toHaveTrait: trait), range: sub)
-        }
-    }
 }

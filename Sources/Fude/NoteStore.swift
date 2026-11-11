@@ -34,6 +34,43 @@ final class NoteStore: ObservableObject {
         reload()
     }
 
+    /// 一覧のまとまり。
+    struct Section: Equatable {
+        let title: String
+        let isToday: Bool
+        let notes: [NoteSummary]
+    }
+
+    /// 更新日時で、今日・昨日・この7日・月ごと（去年より前は年も）にまとめる。notes は新しい順。
+    nonisolated static func sections(_ notes: [NoteSummary], now: Date, calendar: Calendar = .current) -> [Section] {
+        let startOfToday = calendar.startOfDay(for: now)
+        let startOfYesterday = calendar.date(byAdding: .day, value: -1, to: startOfToday)!
+        let startOfWeek = calendar.date(byAdding: .day, value: -7, to: startOfToday)!
+        var result: [Section] = []
+        var titles: [String] = []
+        var groups: [String: [NoteSummary]] = [:]
+        for note in notes {
+            let title: String
+            if note.modified >= startOfToday {
+                title = "今日"
+            } else if note.modified >= startOfYesterday {
+                title = "昨日"
+            } else if note.modified >= startOfWeek {
+                title = "この7日"
+            } else if calendar.isDate(note.modified, equalTo: now, toGranularity: .year) {
+                title = "\(calendar.component(.month, from: note.modified))月"
+            } else {
+                title = "\(calendar.component(.year, from: note.modified))年\(calendar.component(.month, from: note.modified))月"
+            }
+            if groups[title] == nil { titles.append(title) }
+            groups[title, default: []].append(note)
+        }
+        for title in titles {
+            result.append(Section(title: title, isToday: title == "今日", notes: groups[title]!))
+        }
+        return result
+    }
+
     /// 検索語（空白区切り）をすべて含むノート。
     var visible: [NoteSummary] {
         let words = query.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)

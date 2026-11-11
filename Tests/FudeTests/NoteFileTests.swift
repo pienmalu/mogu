@@ -53,3 +53,10 @@ final class SnippetTests: XCTestCase {
                        "今週は論文と資料とcode")
     }
 }
+
+final class CountTests: XCTestCase {
+    func testCountsWithoutSpaces() {
+        XCTAssertEqual(EditorController.count("今日は 晴れ。\nGood day"), 13)
+        XCTAssertEqual(EditorController.count("  \n "), 0)
+    }
+}
