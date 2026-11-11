@@ -13,6 +13,23 @@ final class MarkdownTextView: NSTextView {
         }
     }
 
+    /// 箇条書きの行で改行したら、次の行にも同じ記号を入れる。中身のない行なら記号を消して抜ける。
+    /// 日本語の変換中の Enter は確定に使われ、ここには来ない。
+    override func insertNewline(_ sender: Any?) {
+        let ns = string as NSString
+        let selection = selectedRange()
+        let lineRange = ns.lineRange(for: NSRange(location: selection.location, length: 0))
+        let before = ns.substring(with: NSRange(location: lineRange.location, length: selection.location - lineRange.location))
+        switch ListContinuation.action(forLineBeforeCursor: before) {
+        case .none:
+            super.insertNewline(sender)
+        case .insert(let prefix):
+            insertText("\n" + prefix, replacementRange: selection)
+        case .endList:
+            insertText("", replacementRange: NSRange(location: lineRange.location, length: selection.location - lineRange.location))
+        }
+    }
+
     /// ペーストは常に文字だけ（Web やほかのアプリの書式を持ち込まない）。
     override func paste(_ sender: Any?) {
         pasteAsPlainText(sender)

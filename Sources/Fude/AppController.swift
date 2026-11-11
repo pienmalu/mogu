@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import SwiftUI
 
 /// 部品をつなぐ。メニューバーの項目、ホットキー、窓、一覧、エディタ。
 @MainActor
@@ -11,6 +12,8 @@ final class AppController: NSObject, NSMenuDelegate {
     private var mainWindow: MainWindow!
     private var statusItem: NSStatusItem!
     private var hotKey: GlobalHotKey?
+    private var server: LLMServer!
+    private var rewriteWindow: NSWindow?
     private var cancellables: Set<AnyCancellable> = []
 
     static var defaultFolder: URL {
@@ -45,6 +48,7 @@ final class AppController: NSObject, NSMenuDelegate {
         }
         store.onExternalChange = { [weak self] in self?.editor.reloadIfChangedOnDisk() }
 
+        server = LLMServer(home: LLMServer.locateHome())
         NSApp.mainMenu = buildMainMenu()
         setUpStatusItem()
         hotKey = GlobalHotKey { [weak self] in self?.hotKeyPressed() }
@@ -55,6 +59,7 @@ final class AppController: NSObject, NSMenuDelegate {
 
     func shutdown() {
         editor?.save()
+        server?.stop()
     }
 
     // MARK: - 操作
@@ -131,6 +136,52 @@ final class AppController: NSObject, NSMenuDelegate {
         store.setFolder(url)
     }
 
+    // MARK: - 推敲
+
+    /// 選んだ範囲（なければ本文全体）を推敲する。結果はシートで見せ、置き換えるかを選ばせる。
+    @objc func rewrite() {
+        guard rewriteWindow == nil, !editor.textView.hasMarkedText() else { return }
+        let text = editor.textView.string as NSString
+        var range = editor.textView.selectedRange()
+        if range.length == 0 { range = NSRange(location: 0, length: text.length) }
+        let original = text.substring(with: range)
+        guard !original.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            NSSound.beep()
+            return
+        }
+        let session = RewriteSession(original: original, server: server)
+        let sheet = RewriteSheet(session: session,
+                                 onAccept: { [weak self] result in
+                                     guard let self else { return }
+                                     // シートを出している間に本文が変わっていたら、置き換えない
+                                     let now = self.editor.textView.string as NSString
+                                     if NSMaxRange(range) <= now.length, now.substring(with: range) == original {
+                                         self.editor.replace(range, with: result)
+                                     } else {
+                                         NSSound.beep()
+                                     }
+                                     self.closeRewrite()
+                                 },
+                                 onClose: { [weak self] in self?.closeRewrite() })
+        let host = NSHostingController(rootView: sheet)
+        let window = NSWindow(contentViewController: host)
+        rewriteWindow = window
+        mainWindow.window.beginSheet(window)
+        session.start()
+    }
+
+    private func closeRewrite() {
+        guard let rewriteWindow else { return }
+        mainWindow.window.endSheet(rewriteWindow)
+        self.rewriteWindow = nil
+        mainWindow.window.makeFirstResponder(editor.textView)
+    }
+
+    @objc func chooseModel(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let model = RewriteModel(rawValue: raw) else { return }
+        RewriteModel.current = model
+    }
+
     @objc func toggleSidebar() {
         mainWindow.split.toggleSidebar(nil)
     }
@@ -172,6 +223,21 @@ final class AppController: NSObject, NSMenuDelegate {
         menu.addItem(item("保存先：\(store.folder.lastPathComponent)…", #selector(chooseFolder)))
         menu.addItem(item("Finder で開く", #selector(revealInFinder)))
         menu.addItem(.separator())
+        let models = NSMenu()
+        for model in RewriteModel.allCases {
+            let entry = item(model.label, #selector(chooseModel(_:)))
+            entry.representedObject = model.rawValue
+            entry.state = model == RewriteModel.current ? .on : .off
+            models.addItem(entry)
+        }
+        if !server.isAvailable {
+            models.addItem(.separator())
+            models.addItem(NSMenuItem(title: "未設定：./scripts/setup.sh を実行", action: nil, keyEquivalent: ""))
+        }
+        let modelHolder = NSMenuItem(title: "推敲のモデル", action: nil, keyEquivalent: "")
+        modelHolder.submenu = models
+        menu.addItem(modelHolder)
+        menu.addItem(.separator())
         menu.addItem(item("\(Self.appName) を終了", #selector(quit), key: "q"))
         return menu
     }
@@ -208,6 +274,8 @@ final class AppController: NSObject, NSMenuDelegate {
         find.tag = Int(NSFindPanelAction.showFindPanel.rawValue)
         let next = edit.addItem(withTitle: "次を検索", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "g")
         next.tag = Int(NSFindPanelAction.next.rawValue)
+        edit.addItem(.separator())
+        edit.addItem(item("推敲", #selector(rewrite), key: "j"))
         add(edit, to: main, title: "編集")
 
         let view = NSMenu(title: "表示")

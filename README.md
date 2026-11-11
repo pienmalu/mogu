@@ -1,24 +1,77 @@
-# Thoughts
+# Fude
 
-[![build](https://github.com/inseven/thoughts/actions/workflows/build.yaml/badge.svg)](https://github.com/inseven/thoughts/actions/workflows/build.yaml)
+メニューバーに常駐するメモ帳（macOS 14 以降・Apple Silicon・自分用）。
+ノートはただの `.md` ファイルとしてフォルダに置くので、Obsidian や Finder、git からもそのまま扱える。
+殴り書きは、Mac の中で動く Gemma 4 に推敲させられる。文字は外に送らない。
 
-Lightweight note taking for macOS.
+[inseven/thoughts](https://github.com/inseven/thoughts)（MIT）からの fork。
+ただし中身は書き直していて、上流の変更はもう取り込めない。上流のままのコードは `main` ブランチにある。
 
-<img width="708" src="images/screenshot@2x.png">
+## 使い方
 
-## License
+```bash
+./scripts/build-app.sh --open   # アプリを作って開く
+./scripts/setup.sh              # 推敲を使うときだけ。llama.cpp と Gemma 4 E4B（約 5 GB）を取ってくる
+```
 
-Thoughts is licensed under the MIT License (see [LICENSE](LICENSE)). It depends on the following separately licensed third-party libraries and components:
+- **⌃⌥⌘T**：どこからでも新しいメモを開く。もう一度押すと隠れて、元のアプリに戻る
+- メニューバーのアイコン：左クリックで出し入れ、右クリックでメニュー（保存先、推敲のモデル、終了）
+- 保存は自動。書くのをやめて 0.6 秒で書き込む。空のメモはファイルにしない
 
-- [AutoGrowingTextField](https://christiantietze.de/posts/2020/02/auto-growing-nstextfield/), CC BY-SA 4.0
-- [Diligence](https://github.com/inseven/diligence), MIT License
-- [FrontmatterSwift](https://github.com/jbmorley/FrontmatterSwift), MIT License
-- [Glitter](https://github.com/inseven/glitter), MIT License
-- [HashRainbow](https://github.com/saramah/HashRainbow), MIT License
-- [HighlightedTextEditor](https://github.com/kyle-n/HighlightedTextEditor/), MIT License
-- [Interact](https://github.com/inseven/interact), MIT License
-- [Licensable](https://github.com/inseven/licensable), MIT License
-- [Material Icons](https://github.com/google/material-design-icons), Apache License
-- [Sparkle](https://github.com/sparkle-project/Sparkle), Sparkle License
-- [TagField](https://github.com/jbmorley/TagField), MIT License
-- [Yams](https://github.com/jpsim/Yams), MIT License
+| キー | すること |
+|---|---|
+| ⌘N | 新しいメモ |
+| ⌘P | ノートを探す（Enter で一番上を開く、Esc で消す） |
+| ⌘J | 推敲（選んだ範囲。選んでいなければ全体） |
+| ⇧⌘C | 本文全体を Markdown でコピー |
+| ⌘F | 本文の中を検索 |
+| ⌃⌘S | 一覧を出す・隠す（隠すと、書くだけの小さな窓になる） |
+| ⌘W | 隠す |
+
+## ノートのファイル
+
+- 保存先は既定で `~/Notes`。メニューから変えられる（サブフォルダの中も一覧に出る）
+- 新しいメモは `20261111-083000.md` のような日時の名前で作る。一覧には本文の 1 行目が出る。
+  自分で付けた名前のファイル（`会議メモ.md` など）は、その名前で出る
+- 開いただけでは書き込まない。frontmatter、BOM、改行コード（CRLF）は読んだときのまま残す
+- ほかのアプリで書き換えられたら、手元に未保存の変更がなければ読み直す。あれば上書きせず、
+  `〜 の競合コピー.md` に保存する
+- 削除はゴミ箱へ移すだけ（一覧の右クリック）
+
+## 見た目とコピー
+
+文字はプレーンな Markdown のまま持ち、見た目だけを付ける（見出しを大きく、記号を薄く、コードに背景、引用に縦線）。
+そのため、コピーもペーストも常に Markdown の文字になる。ほかのアプリから書式つきの文を貼っても、文字だけが入る。
+箇条書きの行で Enter を押すと、次の行にも記号が入る（空の行でもう一度押すと抜ける）。
+
+色と大きさは `Sources/Fude/Theme.swift` だけで変えられる。
+
+## 推敲
+
+⌘J で、選んだ範囲を Gemma 4 に推敲させる。結果はシートで見せ、「置き換える」を押したときだけ本文に入る（⌘Z で戻せる）。
+
+- llama.cpp の `llama-server` を、使うときだけ起動する（127.0.0.1 だけで待ち受ける）。5 分使わなければ止めてメモリを返す
+- アプリが落ちて `llama-server` だけが残ったら、次の起動で片付ける
+- モデルはメニューの「推敲のモデル」で選ぶ。M4・24 GB で測った値：
+
+| モデル | ファイル | 動いている間のメモリ | 速さ | 文 |
+|---|---|---|---|---|
+| E4B（既定） | 5.0 GB | 約 5.0 GB | 約 30 トークン/秒 | 自然 |
+| E2B | 3.1 GB | 約 3.1 GB | 約 55 トークン/秒 | やや硬い |
+
+起動は、ファイルが OS に読み込まれていれば 1 秒ほど、久しぶりだと 10 秒ほどかかる。
+E2B を使うときは `./scripts/setup.sh e2b` で取ってくる。
+
+## 軽さ
+
+常駐しているだけなら、メモリは約 25 MB（phys_footprint）、CPU は 0%。依存するライブラリはない。
+
+## 開発
+
+```bash
+./scripts/test.sh                       # テスト
+./tools/render.sh build/shots --window  # 見た目を PNG に描く（--window は窓全体。画面に一瞬出る）
+./tools/try-rewrite.sh e4b < 下書き.txt  # アプリと同じ経路で推敲を試す
+```
+
+アプリ名と bundle ID は `scripts/build-app.sh` の先頭 2 行で変えられる。ホットキーは `Sources/Fude/GlobalHotKey.swift` の先頭。
