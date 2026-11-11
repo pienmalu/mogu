@@ -50,42 +50,13 @@ final class MarkdownTextView: NSTextView {
         }
     }
 
-    /// ⌘クリックでリンクを開く。チェックボックスはクリックで切り替える。ふつうのクリックはカーソルを置くだけ。
+    /// ⌘クリックでリンクを開く。ふつうのクリックはカーソルを置くだけ。
     override func mouseDown(with event: NSEvent) {
         if event.modifierFlags.contains(.command), let url = link(at: event) {
             NSWorkspace.shared.open(url)
             return
         }
-        let point = convert(event.locationInWindow, from: nil)
-        if let layout = layoutManager as? BlockLayoutManager, let container = textContainer,
-           let (range, checked) = layout.checkbox(at: point, in: container, origin: textContainerOrigin) {
-            setCheckbox(NSRange(location: NSMaxRange(range) - 3, length: 3), checked: !checked)
-            return
-        }
         super.mouseDown(with: event)
-    }
-
-    /// [ ] と [x] を入れ替える（Undo できる形で）。
-    func setCheckbox(_ range: NSRange, checked: Bool) {
-        let mark = checked ? "[x]" : "[ ]"
-        guard shouldChangeText(in: range, replacementString: mark) else { return }
-        textStorage?.replaceCharacters(in: range, with: mark)
-        didChangeText()
-    }
-
-    /// ⌘↩：カーソルの行のチェックボックスを切り替える。
-    @objc func toggleCheckbox(_ sender: Any?) {
-        let ns = string as NSString
-        let line = ns.lineRange(for: NSRange(location: selectedRange().location, length: 0))
-        let text = ns.substring(with: line)
-        guard let match = try? NSRegularExpression(pattern: #"^[ \t]*(?:[-*+]|\d{1,3}[.)])[ \t]+(\[[ xX]\])"#)
-            .firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)) else {
-            NSSound.beep()
-            return
-        }
-        let box = match.range(at: 1)
-        let checked = (text as NSString).substring(with: box).lowercased() == "[x]"
-        setCheckbox(NSRange(location: line.location + box.location, length: box.length), checked: !checked)
     }
 
     private func link(at event: NSEvent) -> URL? {
@@ -239,27 +210,7 @@ final class EditorController: NSObject, NSTextViewDelegate {
 
     func textViewDidChangeSelection(_ notification: Notification) {
         updateStatus()
-        revealCurrentLines()
     }
-
-    /// カーソル（か選択）のある行だけ、隠していた記号を見せる。変換中は触らない。
-    func revealCurrentLines() {
-        guard !textView.hasMarkedText(), let layout = textView.layoutManager as? BlockLayoutManager else { return }
-        let ns = textView.string as NSString
-        let selection = textView.selectedRange()
-        let safe = NSRange(location: min(selection.location, ns.length), length: min(selection.length, ns.length - min(selection.location, ns.length)))
-        layout.reveal(ns.lineRange(for: safe))
-    }
-
-    /// 表示メニューの「記号を隠す」。
-    func setHidesMarkup(_ hides: Bool) {
-        guard let layout = textView.layoutManager as? BlockLayoutManager else { return }
-        layout.hidesMarkup = hides
-        UserDefaults.standard.set(hides, forKey: BlockLayoutManager.hideKey)
-        layout.refreshAll()
-    }
-
-    var hidesMarkup: Bool { (textView.layoutManager as? BlockLayoutManager)?.hidesMarkup ?? true }
 
     // MARK: - 開く・新しく作る
 
@@ -304,7 +255,6 @@ final class EditorController: NSObject, NSTextViewDelegate {
         textView.undoManager?.removeAllActions()
         textView.scrollRangeToVisible(clamped)
         updateStatus()
-        revealCurrentLines()
     }
 
     private func restyle() {

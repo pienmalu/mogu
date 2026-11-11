@@ -15,7 +15,7 @@ final class MarkdownStylerTests: XCTestCase {
 
     func testHeading() {
         has("## 見出し", "## 見出し", .heading(2))
-        has("## 見出し", "## ", .syntax)
+        has("## 見出し", "## ", .marker)
         XCTAssertFalse(styles("#タグ").contains { if case .heading = $0.1 { true } else { false } })
         has("今日は #メモ を書く", "#メモ", .tag)
     }
@@ -38,10 +38,6 @@ final class MarkdownStylerTests: XCTestCase {
         has("- 牛乳", "- 牛乳", .list(indent: 2))
         has("  1. 二段目", "  1. 二段目", .list(indent: 5))
         has("- [x] 電話した", "電話した", .done)
-        has("- [x] 電話した", "- [x]", .checkbox(true))
-        XCTAssertFalse(styles("- [ ] 電話する").contains { if case .bullet = $0.1 { true } else { false } }, "チェック項目に点は描かない")
-        has("    - 孫", "-", .bullet(2))
-        has("1. 一", "1.", .marker)
         XCTAssertFalse(styles("- [ ] 電話する").contains { $0.1 == .done })
     }
 
