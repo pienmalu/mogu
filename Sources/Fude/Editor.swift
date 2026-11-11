@@ -13,6 +13,25 @@ final class MarkdownTextView: NSTextView {
         }
     }
 
+    /// ⌘クリックでリンクを開く。ふつうのクリックはカーソルを置くだけ。
+    override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command), let url = link(at: event) {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        super.mouseDown(with: event)
+    }
+
+    private func link(at event: NSEvent) -> URL? {
+        guard let storage = textStorage, storage.length > 0 else { return nil }
+        let point = convert(event.locationInWindow, from: nil)
+        let index = characterIndexForInsertion(at: point)
+        for candidate in [index, index - 1] where candidate >= 0 && candidate < storage.length {
+            if let url = storage.attribute(.fudeLink, at: candidate, effectiveRange: nil) as? URL { return url }
+        }
+        return nil
+    }
+
     /// 箇条書きの行で改行したら、次の行にも同じ記号を入れる。中身のない行なら記号を消して抜ける。
     /// 日本語の変換中の Enter は確定に使われ、ここには来ない。
     override func insertNewline(_ sender: Any?) {
@@ -95,7 +114,6 @@ final class EditorController: NSObject, NSTextViewDelegate {
         textView.drawsBackground = true
         textView.backgroundColor = .textBackgroundColor
         textView.insertionPointColor = .controlAccentColor
-        textView.linkTextAttributes = [.cursor: NSCursor.pointingHand]  // 色は装飾側で付ける
         textView.typingAttributes = Theme.shared.baseAttributes
         textView.defaultParagraphStyle = Theme.shared.bodyParagraph
         scrollView.documentView = textView
@@ -176,10 +194,16 @@ final class EditorController: NSObject, NSTextViewDelegate {
         if let url {
             target = url
             // 開いた後にほかのアプリが書き換えていたら、上書きせず別のファイルに残す。
+            // 本文まで違うときだけ競合とみなす（同期ツールが日時だけ変えることがあるため）。
             if let onDisk = Self.modificationDate(url), let diskDate, onDisk != diskDate {
-                target = Self.uniqueURL(in: url.deletingLastPathComponent(),
-                                        stem: url.deletingPathExtension().lastPathComponent + " の競合コピー")
-                NSLog("外で変更されていたので、別のファイルに保存します: \(target.lastPathComponent)")
+                if let data = try? Data(contentsOf: url), let parsed = NoteFile.parse(data), parsed.body == savedBody {
+                    file = parsed  // frontmatter などが外で変わっていれば、それを引き継ぐ
+                    self.diskDate = onDisk
+                } else {
+                    target = Self.uniqueURL(in: url.deletingLastPathComponent(),
+                                            stem: url.deletingPathExtension().lastPathComponent + " の競合コピー")
+                    NSLog("外で変更されていたので、別のファイルに保存します: \(target.lastPathComponent)")
+                }
             }
         } else {
             guard !isBlankNew else { return }  // 空のメモはファイルにしない

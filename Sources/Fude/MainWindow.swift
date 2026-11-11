@@ -37,7 +37,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
         window.minSize = NSSize(width: 420, height: 300)
         window.center()
         window.setFrameAutosaveName("FudeMain")
-        window.collectionBehavior = [.moveToActiveSpace]  // 今いるデスクトップに出す
+        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]  // 今いるデスクトップ（フルスクリーンの上も）に出す
         super.init()
         window.delegate = self
     }

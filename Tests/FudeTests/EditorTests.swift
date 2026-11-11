@@ -124,3 +124,24 @@ final class EditorTests: XCTestCase {
         XCTAssertFalse(editor.textView.undoManager?.canUndo ?? false, "装飾は Undo に積まない")
     }
 }
+
+@MainActor
+final class EditorConflictTests: XCTestCase {
+    func testTouchedButSameBodyIsNotConflict() throws {
+        let tmp = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TMPDIR"] ?? NSTemporaryDirectory())
+        let folder = tmp.appendingPathComponent("fude-tests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let url = folder.appendingPathComponent("同期.md")
+        try Data("本文".utf8).write(to: url)
+        try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_000_000)], ofItemAtPath: url.path)
+        let editor = EditorController(folder: folder)
+        editor.open(url)
+        editor.textView.string = "本文に足した"
+        // 同期ツールが日時だけ変えた（frontmatter も足した）
+        try Data("---\nsynced: true\n---\n本文".utf8).write(to: url)
+        editor.save()
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["同期.md"])
+        XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "---\nsynced: true\n---\n本文に足した")
+    }
+}

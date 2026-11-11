@@ -26,12 +26,11 @@ final class RewriteSession: ObservableObject {
         task = Task { [weak self] in
             guard let self else { return }
             do {
+                // 途中経過はこのタスクの中で同期的に届く。止めた後や完了後には何もしない
                 let output = try await server.rewrite(original) { [weak self] partial in
-                    Task { @MainActor in
-                        guard let self, !Task.isCancelled else { return }
-                        self.phase = .writing
-                        self.result = partial
-                    }
+                    guard let self, !Task.isCancelled else { return }
+                    self.phase = .writing
+                    self.result = partial
                 }
                 guard !Task.isCancelled else { return }
                 result = RewritePrompt.clean(output, original: original)
@@ -45,6 +44,7 @@ final class RewriteSession: ObservableObject {
 
     func cancel() {
         task?.cancel()
+        task = nil
     }
 }
 

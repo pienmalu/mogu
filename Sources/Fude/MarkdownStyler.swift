@@ -187,8 +187,9 @@ enum MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: theme.tertiaryColor, range: r)
         case .link(let target):
             storage.addAttribute(.foregroundColor, value: theme.accentColor, range: r)
+            // .link にすると、クリックしただけで開いてしまい、リンクの中にカーソルを置けない。開くのは ⌘クリック
             if let url = URL(string: target), url.scheme != nil {
-                storage.addAttribute(.link, value: url, range: r)
+                storage.addAttribute(.fudeLink, value: url, range: r)
             }
         case .tag:
             storage.addAttribute(.foregroundColor, value: theme.accentColor, range: r)

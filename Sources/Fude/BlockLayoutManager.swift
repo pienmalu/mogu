@@ -3,6 +3,8 @@ import AppKit
 extension NSAttributedString.Key {
     /// 行のまとまりに描く飾り（"code" = 全幅の背景、"quote" = 左の縦線）。文字には影響しない。
     static let fudeBlock = NSAttributedString.Key("FudeBlock")
+    /// ⌘クリックで開くリンク先。
+    static let fudeLink = NSAttributedString.Key("FudeLink")
 }
 
 /// コードブロックの背景を本文の幅いっぱいに、引用の左に縦線を描く。

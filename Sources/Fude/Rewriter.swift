@@ -65,22 +65,33 @@ final class LLMServer {
     enum Failure: LocalizedError {
         case missing(String)
         case startFailed(String)
+        case tooLong
+        case server(String)
 
         var errorDescription: String? {
             switch self {
             case .missing(let what): "\(what) がありません。ターミナルで ./scripts/setup.sh を実行してください。"
             case .startFailed(let why): "推敲のモデルを起動できませんでした（\(why)）"
+            case .tooLong: "一度に推敲するには長すぎます。範囲を選んでから ⌘J を押してください。"
+            case .server(let why): "推敲に失敗しました（\(why)）"
             }
         }
     }
 
     /// 最後に使ってから止めるまで。
     static let idleLimit: TimeInterval = 5 * 60
+    /// モデルに渡せる長さ（トークン）。推敲は入力と同じくらい書くので、下書きはこの半分弱まで。
+    static let contextTokens = 16384
+    /// 一度に推敲する下書きの上限（文字）。日本語はおおむね1文字1トークン強なので、余裕を見てこのくらい。
+    static let maxDraftCharacters = 5000
 
     private var process: Process?
     private var port: Int = 0
     private var model: RewriteModel?
     private var idleTimer: Timer?
+    /// health が ok を返した後だけ true（起動途中に次の推敲が来ても、待たずに投げないように）。
+    private var ready = false
+    private var starting: Task<URL, Error>?
 
     private let home: URL
     private var serverURL: URL { home.appendingPathComponent("vendor/llama/llama-server") }
@@ -112,9 +123,12 @@ final class LLMServer {
     /// 起動していなければ起動し、受け付けられるまで待つ。返すのは API の入口。
     func endpoint() async throws -> URL {
         let wanted = RewriteModel.current
-        if let process, process.isRunning, model == wanted {
+        if let process, process.isRunning, model == wanted, ready {
             touch()
             return URL(string: "http://127.0.0.1:\(port)")!
+        }
+        if let starting, model == wanted {
+            return try await starting.value  // 起動の途中なら、その完了を待つ
         }
         stop()
         guard FileManager.default.isExecutableFile(atPath: serverURL.path) else { throw Failure.missing("llama.cpp") }
@@ -124,7 +138,7 @@ final class LLMServer {
         let task = Process()
         task.executableURL = serverURL
         task.arguments = ["-m", modelURL(wanted).path, "--host", "127.0.0.1", "--port", "\(port)",
-                          "-c", "8192", "-ngl", "99", "--jinja", "--parallel", "1", "--no-webui"]
+                          "-c", "\(Self.contextTokens)", "-ngl", "99", "--jinja", "--parallel", "1", "--no-webui"]
         task.standardOutput = FileHandle.nullDevice
         task.standardError = FileHandle.nullDevice
         do {
@@ -137,22 +151,37 @@ final class LLMServer {
         try? "\(task.processIdentifier)".write(to: pidFile, atomically: true, encoding: .utf8)
 
         let base = URL(string: "http://127.0.0.1:\(port)")!
-        let deadline = Date().addingTimeInterval(90)
-        while Date() < deadline {
-            guard task.isRunning else { break }
-            if let (data, _) = try? await URLSession.shared.data(from: base.appendingPathComponent("health")),
-               String(decoding: data, as: UTF8.self).contains("ok") {
-                touch()
-                return base
+        let waiting = Task<URL, Error> {
+            let deadline = Date().addingTimeInterval(90)
+            while Date() < deadline {
+                guard task.isRunning else { throw Failure.startFailed("llama-server が終了しました") }
+                if let (data, _) = try? await URLSession.shared.data(from: base.appendingPathComponent("health")),
+                   String(decoding: data, as: UTF8.self).contains("ok") {
+                    return base
+                }
+                try await Task.sleep(nanoseconds: 150_000_000)
             }
-            try await Task.sleep(nanoseconds: 150_000_000)
+            throw Failure.startFailed("時間内に応答がありませんでした")
         }
-        stop()
-        throw Failure.startFailed("時間内に応答がありませんでした")
+        starting = waiting
+        do {
+            let url = try await waiting.value
+            starting = nil
+            guard process === task else { throw Failure.startFailed("途中で止められました") }
+            ready = true
+            touch()
+            return url
+        } catch {
+            starting = nil
+            if process === task { stop() }
+            throw error
+        }
     }
 
     /// 推敲した文を少しずつ返す。
-    func rewrite(_ draft: String, onPartial: @escaping (String) -> Void) async throws -> String {
+    /// onPartial はこのメインスレッドの上で、そのまま呼ぶ。
+    func rewrite(_ draft: String, onPartial: @MainActor (String) -> Void) async throws -> String {
+        guard draft.count <= Self.maxDraftCharacters else { throw Failure.tooLong }
         let base = try await endpoint()
         var request = URLRequest(url: base.appendingPathComponent("v1/chat/completions"))
         request.httpMethod = "POST"
@@ -160,28 +189,45 @@ final class LLMServer {
         request.httpBody = try JSONSerialization.data(withJSONObject: RewritePrompt.requestBody(for: draft))
         request.timeoutInterval = 300
 
-        let (bytes, _) = try await URLSession.shared.bytes(for: request)
+        let (bytes, response) = try await URLSession.shared.bytes(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 200 else {
+            var body = ""
+            for try await line in bytes.lines { body += line }
+            throw body.contains("context") || body.contains("exceed") ? Failure.tooLong : Failure.server("HTTP \(status)")
+        }
         var output = ""
+        var finish: String?
         for try await line in bytes.lines {
+            try Task.checkCancellation()
             guard line.hasPrefix("data: ") else { continue }
             let payload = line.dropFirst(6)
             if payload == "[DONE]" { break }
             guard let json = try? JSONSerialization.jsonObject(with: Data(payload.utf8)) as? [String: Any],
-                  let choice = (json["choices"] as? [[String: Any]])?.first,
-                  let delta = choice["delta"] as? [String: Any],
-                  let piece = delta["content"] as? String else { continue }
-            output += piece
-            onPartial(output)
+                  let choice = (json["choices"] as? [[String: Any]])?.first else { continue }
+            if let reason = choice["finish_reason"] as? String { finish = reason }
+            if let delta = choice["delta"] as? [String: Any], let piece = delta["content"] as? String {
+                output += piece
+                onPartial(output)
+            }
         }
         touch()
-        return output
+        // 最後まで書き切ったときだけ使う（長さの上限で切れた文を、完成したものとして見せない）
+        switch finish {
+        case "stop": return output
+        case "length": throw Failure.tooLong
+        default: throw Failure.server("答えが途中で途切れました")
+        }
     }
 
     func stop() {
         idleTimer?.invalidate()
+        starting?.cancel()
+        starting = nil
         if let process, process.isRunning { process.terminate() }
         process = nil
         model = nil
+        ready = false
         try? FileManager.default.removeItem(at: pidFile)
     }
 

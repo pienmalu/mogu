@@ -30,12 +30,12 @@ final class AppController: NSObject, NSMenuDelegate {
         let sidebar = Sidebar(store: store,
                               onNew: { [weak self] in self?.newNote() },
                               onOpenFirst: { [weak self] in self?.openFirstResult() },
-                              onChooseFolder: { [weak self] in self?.chooseFolder() })
+                              onChooseFolder: { [weak self] in self?.chooseFolder() },
+                              onTrash: { [weak self] in self?.trash($0) })
         mainWindow = MainWindow(store: store, editor: editor, sidebar: sidebar)
 
         // 一覧で選んだら開く。エディタが保存して新しいファイルができたら、一覧の選択をそれに合わせる。
         store.$selection
-            .removeDuplicates()
             .sink { [weak self] url in
                 guard let self, let url, url != self.editor.url else { return }
                 self.editor.open(url)
@@ -104,12 +104,9 @@ final class AppController: NSObject, NSMenuDelegate {
 
     @objc func copyAsMarkdown() { editor.copyAll() }
 
-    @objc func trashCurrent() {
-        guard let url = editor.url else {
-            editor.discard()
-            return
-        }
-        editor.discard()
+    /// 開いているノートなら、エディタから手放してから移す（次の保存で書き戻さないように）。
+    func trash(_ url: URL) {
+        if editor.url == url { editor.discard() }
         store.trash(url)
     }
 
@@ -257,7 +254,6 @@ final class AppController: NSObject, NSMenuDelegate {
         file.addItem(item("ノートを探す", #selector(focusSearch), key: "p"))
         file.addItem(item("Markdown でコピー", #selector(copyAsMarkdown), key: "c", modifiers: [.command, .shift]))
         file.addItem(item("Finder で表示", #selector(revealInFinder), key: "r", modifiers: [.command, .shift]))
-        file.addItem(item("ゴミ箱に入れる", #selector(trashCurrent)))
         add(file, to: main, title: "ファイル")
 
         let edit = NSMenu(title: "編集")

@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 /// 見た目の確認用。見本のノートを開いた窓を画面に出さずに描き、PNG にする。
 /// 使い方: ./tools/render.sh [出力フォルダ]
@@ -29,7 +30,7 @@ enum RenderMain {
             app.appearance = NSAppearance(named: appearance)
             let store = NoteStore(folder: folder)
             let editor = EditorController(folder: folder)
-            let sidebar = Sidebar(store: store, onNew: {}, onOpenFirst: {}, onChooseFolder: {})
+            let sidebar = Sidebar(store: store, onNew: {}, onOpenFirst: {}, onChooseFolder: {}, onTrash: { _ in })
             let main = MainWindow(store: store, editor: editor, sidebar: sidebar)
             main.window.appearance = NSAppearance(named: appearance)
             main.window.setContentSize(NSSize(width: 980, height: 700))
@@ -66,7 +67,35 @@ enum RenderMain {
             }
             main.window.orderOut(nil)
         }
+        if CommandLine.arguments.contains("--window") { renderSheets(out) }
         try? FileManager.default.removeItem(at: folder)
+    }
+
+    /// 推敲シートの「完了」と「失敗」を撮る。
+    @MainActor static func renderSheets(_ out: URL) {
+        let server = LLMServer(home: URL(fileURLWithPath: "/nonexistent"))
+        let cases: [(String, RewriteSession.Phase, String)] = [
+            ("done", .done, "## 今日のゼミ\n先生から指摘されたこと\n- 実験のサンプル数が足りない。もう少し集める必要がある。\n- [ ] 来週までに方針を決定し、先生にメールを送ること。"),
+            ("failed", .failed(LLMServer.Failure.tooLong.localizedDescription), ""),
+        ]
+        for (name, phase, result) in cases {
+            NSApp.appearance = NSAppearance(named: .aqua)
+            let session = RewriteSession(original: "きょうのゼミ、先生にいわれたこと", server: server)
+            session.phase = phase
+            session.result = result
+            let window = NSWindow(contentViewController: NSHostingController(rootView: RewriteSheet(session: session, onAccept: { _ in }, onClose: {})))
+            window.styleMask = [.titled]
+            window.orderFrontRegardless()
+            for _ in 0..<10 { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+            let file = out.appendingPathComponent("sheet-\(name).png")
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+            task.arguments = ["-x", "-o", "-l", "\(window.windowNumber)", file.path]
+            try? task.run()
+            task.waitUntilExit()
+            print(file.path)
+            window.orderOut(nil)
+        }
     }
 
     static func save(_ rep: NSBitmapImageRep, _ file: URL) {

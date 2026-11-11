@@ -6,6 +6,7 @@ struct Sidebar: View {
     let onNew: () -> Void
     let onOpenFirst: () -> Void
     let onChooseFolder: () -> Void
+    let onTrash: (URL) -> Void
     @FocusState private var searching: Bool
 
     var body: some View {
@@ -47,7 +48,7 @@ struct Sidebar: View {
                         .contextMenu {
                             Button("Finder で表示") { NSWorkspace.shared.activateFileViewerSelecting([note.url]) }
                             Divider()
-                            Button("ゴミ箱に入れる") { store.trash(note.url) }
+                            Button("ゴミ箱に入れる") { onTrash(note.url) }
                         }
                 }
             }
