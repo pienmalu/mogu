@@ -13,37 +13,6 @@ final class MarkdownTextView: NSTextView {
         }
     }
 
-    /// カーソルは行の高さではなく、文字の高さで描き、行の真ん中に置く（行の高さを固定しているので、そのままだと縦に長くなる）。
-    override func drawInsertionPoint(in rect: NSRect, color: NSColor, turnedOn flag: Bool) {
-        let font = typingAttributes[.font] as? NSFont ?? Theme.shared.bodyFont
-        let height = min(rect.height, ceil(font.ascender - font.descender) + 2)
-        var caret = rect
-        if let line = usedRectForInsertionPoint(), line.height > 0 {
-            caret.origin.y = line.minY + ((line.height - height) / 2).rounded()
-        } else {
-            caret.origin.y = rect.minY + ((rect.height - height) / 2).rounded()
-        }
-        caret.size.height = height
-        super.drawInsertionPoint(in: caret, color: color, turnedOn: flag)
-    }
-
-    /// カーソルのある行の、段落の前後の空きを除いた四角（ビューの座標）。
-    private func usedRectForInsertionPoint() -> NSRect? {
-        guard let layout = layoutManager else { return nil }
-        let length = (string as NSString).length
-        let location = selectedRange().location
-        var used: NSRect
-        if location >= length {
-            used = layout.extraLineFragmentUsedRect
-            if used.isEmpty, length > 0 {
-                used = layout.lineFragmentUsedRect(forGlyphAt: layout.glyphIndexForCharacter(at: length - 1), effectiveRange: nil)
-            }
-        } else {
-            used = layout.lineFragmentUsedRect(forGlyphAt: layout.glyphIndexForCharacter(at: location), effectiveRange: nil)
-        }
-        return used.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
-    }
-
     /// ⌘クリックでリンクを開く。ふつうのクリックはカーソルを置くだけ。
     override func mouseDown(with event: NSEvent) {
         if event.modifierFlags.contains(.command), let url = link(at: event) {
