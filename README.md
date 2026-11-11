@@ -2,7 +2,7 @@
 
 メニューバーに常駐するメモ帳（macOS 14 以降・Apple Silicon・自分用）。
 ノートはただの `.md` ファイルとしてフォルダに置くので、Obsidian や Finder、git からもそのまま扱える。
-名前は、殴り書きを「もぐもぐ」噛み砕いて文にすることから。音声入力の [Poko](../koe) と対になる。
+名前は、殴り書きを「もぐもぐ」噛み砕いて文にすることから。音声入力の [Poko](../poko) と対になる。
 殴り書きは、Mac の中で動く Gemma 4 に推敲させられる。文字は外に送らない。
 
 [inseven/thoughts](https://github.com/inseven/thoughts)（MIT）からの fork。
