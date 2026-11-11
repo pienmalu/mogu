@@ -93,7 +93,7 @@ enum RenderMain {
             pump(0.3)
         }
         store.query = query
-        if collapse { main.split.splitViewItems.first?.isCollapsed = true }
+        main.split.splitViewItems.first?.isCollapsed = collapse  // 前回の状態が残っていても、撮る場面どおりにする
         if let select { editor.textView.setSelectedRange(select) }
         if wantsActive {
             NSApp.activate(ignoringOtherApps: true)
@@ -122,6 +122,7 @@ enum RenderMain {
                 NSApp.appearance = theme.appearance
                 let session = RewriteSession(original: Samples.draft, server: server)
                 session.result = result
+                if phase == .done { session.pieces = Proofread.diff(Samples.draft, result) }
                 session.phase = phase
                 let host = NSHostingController(rootView: RewriteSheet(session: session, onAccept: { _ in }, onClose: {}))
                 let window = NSWindow(contentViewController: host)
