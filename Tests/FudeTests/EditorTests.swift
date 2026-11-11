@@ -145,3 +145,37 @@ final class EditorConflictTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: url, encoding: .utf8), "---\nsynced: true\n---\n本文に足した")
     }
 }
+
+/// 日本語の変換中は、装飾も保存もしない（変換中の下線と範囲が保たれ、確定できる）。
+@MainActor
+final class ComposingTests: XCTestCase {
+    func testComposingIsNotDisturbed() throws {
+        let tmp = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TMPDIR"] ?? NSTemporaryDirectory())
+        let folder = tmp.appendingPathComponent("fude-tests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let editor = EditorController(folder: folder)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = editor.scrollView
+        editor.newNote()
+        let view = editor.textView
+        view.string = "## 見出し\n"
+        editor.textDidChange(Notification(name: NSText.didChangeNotification, object: view))
+        view.setSelectedRange(NSRange(location: 7, length: 0))
+        view.setMarkedText("にほん", selectedRange: NSRange(location: 3, length: 0),
+                           replacementRange: NSRange(location: NSNotFound, length: 0))
+        XCTAssertTrue(view.hasMarkedText())
+        let marked = view.markedRange()
+        let underline = view.textStorage!.attribute(.underlineStyle, at: marked.location, effectiveRange: nil) as? Int
+        editor.textDidChange(Notification(name: NSText.didChangeNotification, object: view))
+        editor.save()
+        XCTAssertTrue(view.hasMarkedText())
+        XCTAssertEqual(view.markedRange(), marked)
+        XCTAssertEqual(view.textStorage!.attribute(.underlineStyle, at: marked.location, effectiveRange: nil) as? Int, underline,
+                       "変換中の下線が消えない")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), [], "変換中は保存しない")
+        view.insertText("日本", replacementRange: marked)
+        XCTAssertFalse(view.hasMarkedText())
+        XCTAssertEqual(view.string, "## 見出し\n日本")
+    }
+}

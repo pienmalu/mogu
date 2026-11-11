@@ -18,7 +18,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
         sidebarItem.canCollapse = true
 
         let editorHost = NSViewController()
-        editorHost.view = editor.container
+        editorHost.view = editor.scrollView
         let editorItem = NSSplitViewItem(viewController: editorHost)
         editorItem.minimumThickness = 320
 

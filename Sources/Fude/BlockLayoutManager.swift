@@ -9,7 +9,7 @@ extension NSAttributedString.Key {
     static let fudeLink = NSAttributedString.Key("FudeLink")
 }
 
-/// 文字の後ろに描く飾り：コードブロックの下地（本文の幅いっぱい）、引用の縦線、水平線、インラインコードの下地。
+/// 行の高さをそろえ、文字の後ろに飾りを描く：コードブロックの下地（本文の幅いっぱい）、引用の縦線、インラインコードの下地。
 final class BlockLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     override init() {
         super.init()
@@ -48,10 +48,12 @@ final class BlockLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         }
         let ns = storage.string as NSString
         let startsParagraph = characters.location == 0 || ns.character(at: characters.location - 1) == 10
+        let endsParagraph = NSMaxRange(characters) >= ns.length || ns.character(at: NSMaxRange(characters) - 1) == 10
         let before = startsParagraph ? (paragraph?.paragraphSpacingBefore ?? 0) : 0
+        let after = endsParagraph ? (paragraph?.paragraphSpacing ?? 0) : 0
 
         var rect = lineFragmentRect.pointee
-        rect.size.height = before + height
+        rect.size.height = before + height + after
         lineFragmentRect.pointee = rect
         var used = lineFragmentUsedRect.pointee
         used.origin.y = rect.origin.y + before
@@ -76,23 +78,24 @@ final class BlockLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
                                   in: NSRange(location: 0, length: storage.length))
             // 最後の改行は次の行の頭に見えるので含めない
             if block.length > 1, ns.character(at: NSMaxRange(block) - 1) == 10 { block.length -= 1 }
+            // 行ごとの使用域（段落の前後の空きを除いた部分）を足し合わせる
             let glyphs = glyphRange(forCharacterRange: block, actualCharacterRange: nil)
-            var rect = boundingRect(forGlyphRange: glyphs, in: container)
+            var rect = NSRect.null
+            enumerateLineFragments(forGlyphRange: glyphs) { _, used, _, _, _ in rect = rect.union(used) }
+            guard !rect.isNull else { return }
             // 描けるのはテキストコンテナの内側だけなので、字下げした段落の左の空きに描く
             rect.origin.x = 0
             rect.size.width = container.size.width
             rect = rect.offsetBy(dx: origin.x, dy: origin.y)
             switch kind {
             case "code":
-                theme.wash.setFill()
-                NSBezierPath(roundedRect: rect.insetBy(dx: 0, dy: -6), xRadius: 8, yRadius: 8).fill()
+                theme.codeBackground.setFill()
+                NSBezierPath(roundedRect: rect.insetBy(dx: 0, dy: -4), xRadius: 6, yRadius: 6).fill()
             case "quote":
-                theme.rule.setFill()
-                NSRect(x: rect.minX + container.lineFragmentPadding, y: rect.minY + 4, width: 2, height: rect.height - 8).fill()
-            case "rule":
-                theme.rule.setFill()
-                NSRect(x: rect.minX + container.lineFragmentPadding, y: rect.midY.rounded(),
-                       width: rect.width - container.lineFragmentPadding * 2, height: 1).fill()
+                theme.quoteBar.setFill()
+                NSBezierPath(roundedRect: NSRect(x: rect.minX + container.lineFragmentPadding, y: rect.minY + 3,
+                                                 width: 3, height: rect.height - 6),
+                             xRadius: 1.5, yRadius: 1.5).fill()
             default:
                 break
             }
@@ -109,7 +112,7 @@ final class BlockLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
                 var box = lineRect.offsetBy(dx: origin.x, dy: origin.y)
                 box.origin.y += ((box.height - height) / 2).rounded()
                 box.size.height = height
-                theme.wash.setFill()
+                theme.codeBackground.setFill()
                 NSBezierPath(roundedRect: box.insetBy(dx: -2, dy: 0), xRadius: 4, yRadius: 4).fill()
             }
         }
