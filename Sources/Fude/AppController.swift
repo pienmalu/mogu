@@ -179,6 +179,12 @@ final class AppController: NSObject, NSMenuDelegate {
         RewriteModel.current = model
     }
 
+    /// 表示 → 記号を隠す（カーソルのない行の #、**、[]() などを隠す）。
+    @objc func toggleMarkup(_ sender: NSMenuItem) {
+        editor.setHidesMarkup(!editor.hidesMarkup)
+        sender.state = editor.hidesMarkup ? .on : .off
+    }
+
     @objc func toggleSidebar() {
         mainWindow.split.toggleSidebar(nil)
     }
@@ -271,11 +277,17 @@ final class AppController: NSObject, NSMenuDelegate {
         let next = edit.addItem(withTitle: "次を検索", action: #selector(NSTextView.performFindPanelAction(_:)), keyEquivalent: "g")
         next.tag = Int(NSFindPanelAction.next.rawValue)
         edit.addItem(.separator())
+        let check = NSMenuItem(title: "チェックを入れる・外す", action: #selector(MarkdownTextView.toggleCheckbox(_:)), keyEquivalent: "\r")
+        check.keyEquivalentModifierMask = .command
+        edit.addItem(check)
         edit.addItem(item("推敲", #selector(rewrite), key: "j"))
         add(edit, to: main, title: "編集")
 
         let view = NSMenu(title: "表示")
         view.addItem(item("一覧を出す・隠す", #selector(toggleSidebar), key: "s", modifiers: [.command, .control]))
+        let markup = item("記号を隠す", #selector(toggleMarkup(_:)), key: "m", modifiers: [.command, .shift])
+        markup.state = editor.hidesMarkup ? .on : .off
+        view.addItem(markup)
         add(view, to: main, title: "表示")
         return main
     }

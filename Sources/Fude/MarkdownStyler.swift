@@ -4,7 +4,10 @@ import AppKit
 enum MarkdownStyler {
     enum Style: Equatable {
         case heading(Int)
-        case marker          // #、**、` などの記号（薄くする）
+        case marker          // 番号など、いつも見せる記号（薄くする）
+        case syntax          // #、**、`、[]() など、カーソルのない行では隠す記号
+        case bullet(Int)     // 箇条書きの - * +（点を描く。数字は入れ子の深さ）
+        case checkbox(Bool)  // [ ] と [x]（箱を描く。true は済み）
         case bold, italic, strike, code, tag
         case codeBlock
         case quote
@@ -55,10 +58,10 @@ enum MarkdownStyler {
             if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
                 if inFence {
                     spans.append(Span(range: NSRange(location: fenceStart, length: NSMaxRange(lineRange) - fenceStart), style: .codeBlock))
-                    spans.append(Span(range: content, style: .marker))
+                    spans.append(Span(range: content, style: .syntax))
                 } else {
                     fenceStart = lineRange.location
-                    spans.append(Span(range: content, style: .marker))
+                    spans.append(Span(range: content, style: .syntax))
                 }
                 inFence.toggle()
                 continue
@@ -86,21 +89,27 @@ enum MarkdownStyler {
         if let m = heading.firstMatch(in: ns as String, range: line) {
             let level = m.range(at: 1).length
             spans.append(Span(range: line, style: .heading(level)))
-            spans.append(Span(range: m.range, style: .marker))
+            spans.append(Span(range: m.range, style: .syntax))
             rest = NSRange(location: NSMaxRange(m.range), length: NSMaxRange(line) - NSMaxRange(m.range))
         } else if let m = quote.firstMatch(in: ns as String, range: line) {
             spans.append(Span(range: line, style: .quote))
-            spans.append(Span(range: m.range, style: .marker))
+            spans.append(Span(range: m.range, style: .syntax))
             rest = NSRange(location: NSMaxRange(m.range), length: NSMaxRange(line) - NSMaxRange(m.range))
         } else if let m = list.firstMatch(in: ns as String, range: line) {
             spans.append(Span(range: line, style: .list(indent: m.range.length)))
-            spans.append(Span(range: m.range(at: 2), style: .marker))
+            let symbol = m.range(at: 2)
             let box = m.range(at: 3)
             if box.location != NSNotFound {
-                spans.append(Span(range: box, style: .marker))
+                // チェック項目は点を描かず、「- [ ]」の位置に箱を1つ描く
                 let checked = ns.substring(with: box).lowercased().contains("x")
+                spans.append(Span(range: NSRange(location: symbol.location, length: box.location + 3 - symbol.location), style: .checkbox(checked)))
                 let after = NSRange(location: NSMaxRange(m.range), length: NSMaxRange(line) - NSMaxRange(m.range))
                 if checked, after.length > 0 { spans.append(Span(range: after, style: .done)) }
+            } else if symbol.length == 1, "-*+".contains(ns.substring(with: symbol)) {
+                let depth = ns.substring(with: m.range(at: 1)).replacingOccurrences(of: "\t", with: "  ").count / 2
+                spans.append(Span(range: symbol, style: .bullet(depth)))
+            } else {
+                spans.append(Span(range: symbol, style: .marker))
             }
             rest = NSRange(location: NSMaxRange(m.range), length: NSMaxRange(line) - NSMaxRange(m.range))
         }
@@ -115,16 +124,16 @@ enum MarkdownStyler {
         for m in inlineCode.matches(in: text, range: range) {
             codeRanges.append(m.range)
             spans.append(Span(range: m.range, style: .code))
-            spans.append(Span(range: NSRange(location: m.range.location, length: 1), style: .marker))
-            spans.append(Span(range: NSRange(location: NSMaxRange(m.range) - 1, length: 1), style: .marker))
+            spans.append(Span(range: NSRange(location: m.range.location, length: 1), style: .syntax))
+            spans.append(Span(range: NSRange(location: NSMaxRange(m.range) - 1, length: 1), style: .syntax))
         }
         func outsideCode(_ r: NSRange) -> Bool { !codeRanges.contains { NSIntersectionRange($0, r).length > 0 } }
 
         for m in link.matches(in: text, range: range) where outsideCode(m.range) {
             let target = ns.substring(with: m.range(at: 2))
             spans.append(Span(range: m.range(at: 1), style: .link(target)))
-            spans.append(Span(range: NSRange(location: m.range.location, length: 1), style: .marker))
-            spans.append(Span(range: NSRange(location: NSMaxRange(m.range(at: 1)), length: NSMaxRange(m.range) - NSMaxRange(m.range(at: 1))), style: .marker))
+            spans.append(Span(range: NSRange(location: m.range.location, length: 1), style: .syntax))
+            spans.append(Span(range: NSRange(location: NSMaxRange(m.range(at: 1)), length: NSMaxRange(m.range) - NSMaxRange(m.range(at: 1))), style: .syntax))
         }
         for m in bareURL.matches(in: text, range: range) where outsideCode(m.range) {
             spans.append(Span(range: m.range, style: .link(ns.substring(with: m.range))))
@@ -132,8 +141,8 @@ enum MarkdownStyler {
         for (expression, style, marker) in [(bold, Style.bold, 2), (strike, .strike, 2), (italic, .italic, 1)] {
             for m in expression.matches(in: text, range: range) where outsideCode(m.range) {
                 spans.append(Span(range: m.range, style: style))
-                spans.append(Span(range: NSRange(location: m.range.location, length: marker), style: .marker))
-                spans.append(Span(range: NSRange(location: NSMaxRange(m.range) - marker, length: marker), style: .marker))
+                spans.append(Span(range: NSRange(location: m.range.location, length: marker), style: .syntax))
+                spans.append(Span(range: NSRange(location: NSMaxRange(m.range) - marker, length: marker), style: .syntax))
             }
         }
         for m in tag.matches(in: text, range: range) where outsideCode(m.range) {
@@ -162,7 +171,17 @@ enum MarkdownStyler {
             storage.addAttribute(.font, value: theme.headingFont(level), range: r)
             storage.addAttribute(.paragraphStyle, value: theme.headingParagraph(level), range: r)
         case .marker:
+            storage.addAttribute(.foregroundColor, value: theme.inkSecondary, range: r)
+        case .syntax:
             storage.addAttribute(.foregroundColor, value: theme.inkFaint, range: r)
+            storage.addAttribute(.fudeHide, value: true, range: r)
+        case .bullet(let depth):
+            // 文字は透明にして幅だけ残し、上に点を描く（記号を見せても隠しても行がずれない）
+            storage.addAttribute(.foregroundColor, value: NSColor.clear, range: r)
+            storage.addAttribute(.fudeBullet, value: depth, range: r)
+        case .checkbox(let checked):
+            storage.addAttribute(.foregroundColor, value: NSColor.clear, range: r)
+            storage.addAttribute(.fudeCheckbox, value: checked, range: r)
         case .bold:
             storage.enumerateAttribute(.font, in: r) { value, sub, _ in
                 guard let font = value as? NSFont else { return }
@@ -172,8 +191,9 @@ enum MarkdownStyler {
                 storage.addAttribute(.font, value: bold, range: sub)
             }
         case .italic:
-            // 和文に斜体はないので、字形ごと少し傾ける
+            // 欧文は傾ける。和文は傾けられないので、組版の慣習どおり傍点を打つ（描くのは BlockLayoutManager）
             storage.addAttribute(.obliqueness, value: 0.16, range: r)
+            storage.addAttribute(.fudeEmphasis, value: true, range: r)
         case .strike:
             storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: r)
             storage.addAttribute(.foregroundColor, value: theme.inkSecondary, range: r)
@@ -210,6 +230,7 @@ enum MarkdownStyler {
         case .rule:
             storage.addAttribute(.foregroundColor, value: theme.inkFaint, range: r)
             storage.addAttribute(.fudeBlock, value: "rule", range: r)
+            storage.addAttribute(.fudeHide, value: true, range: r)
         case .blank:
             storage.addAttribute(.paragraphStyle, value: theme.blankParagraph, range: r)
         }
