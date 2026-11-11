@@ -16,6 +16,7 @@ final class LivePreviewTests: XCTestCase {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
         window.contentView = editor.container
         editor.newNote()
+        window.makeFirstResponder(editor.textView)
         if let layout = editor.textView.layoutManager as? BlockLayoutManager { layout.hidesMarkup = true }
     }
 
@@ -87,5 +88,23 @@ final class LivePreviewTests: XCTestCase {
         view.insertText("日本", replacementRange: marked)
         XCTAssertFalse(view.hasMarkedText())
         XCTAssertEqual(view.string, "## 見出し\n日本")
+    }
+}
+
+@MainActor
+final class FocusTests: XCTestCase {
+    func testAllMarkupHiddenWithoutFocus() {
+        let editor = EditorController(folder: URL(fileURLWithPath: NSTemporaryDirectory()))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = editor.container
+        editor.newNote()
+        editor.textView.string = "## 見出し"
+        editor.textDidChange(Notification(name: NSText.didChangeNotification, object: editor.textView))
+        editor.textView.setSelectedRange(NSRange(location: 1, length: 0))
+        window.makeFirstResponder(nil)
+        editor.revealCurrentLines()
+        let layout = editor.textView.layoutManager!
+        layout.ensureGlyphs(forCharacterRange: NSRange(location: 0, length: 6))
+        XCTAssertEqual(layout.propertyForGlyph(at: layout.glyphIndexForCharacter(at: 0)), .controlCharacter, "焦点がなければカーソルの行も隠す")
     }
 }

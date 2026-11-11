@@ -198,7 +198,8 @@ final class AppController: NSObject, NSMenuDelegate {
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         guard let button = statusItem.button else { return }
-        button.image = NSImage(systemSymbolName: "text.justify.left", accessibilityDescription: Self.appName)
+        button.image = BrushMark.menuBarImage()
+        button.toolTip = "\(Self.appName)：クリックで出し入れ、右クリックでメニュー"
         button.target = self
         button.action = #selector(statusItemClicked(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
