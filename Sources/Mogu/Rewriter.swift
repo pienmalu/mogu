@@ -32,15 +32,7 @@ enum RewritePrompt {
     """
 
     static func requestBody(for draft: String, stream: Bool = true) -> [String: Any] {
-        [
-            "messages": [
-                ["role": "system", "content": system],
-                ["role": "user", "content": draft],
-            ],
-            "temperature": 0.3,
-            "stream": stream,
-            "chat_template_kwargs": ["enable_thinking": false],
-        ]
+        LLMServer.requestBody(system: system, user: draft, stream: stream)
     }
 
     /// 返ってきた文を、元の文と差し替えられる形にする。
@@ -71,11 +63,24 @@ final class LLMServer {
         var errorDescription: String? {
             switch self {
             case .missing(let what): "\(what) がありません。ターミナルで ./scripts/setup.sh を実行してください。"
-            case .startFailed(let why): "推敲のモデルを起動できませんでした（\(why)）"
+            case .startFailed(let why): "モデルを起動できませんでした（\(why)）"
             case .tooLong: "一度に推敲するには長すぎます。範囲を選んでから ⌘J を押してください。"
-            case .server(let why): "推敲に失敗しました（\(why)）"
+            case .server(let why): "モデルが答えられませんでした（\(why)）"
             }
         }
+    }
+
+    /// llama-server に渡す頼みの形。
+    nonisolated static func requestBody(system: String, user: String, stream: Bool = true) -> [String: Any] {
+        [
+            "messages": [
+                ["role": "system", "content": system],
+                ["role": "user", "content": user],
+            ],
+            "temperature": 0.3,
+            "stream": stream,
+            "chat_template_kwargs": ["enable_thinking": false],
+        ]
     }
 
     /// 最後に使ってから止めるまで。
@@ -182,11 +187,16 @@ final class LLMServer {
     /// onPartial はこのメインスレッドの上で、そのまま呼ぶ。
     func rewrite(_ draft: String, onPartial: @MainActor (String) -> Void) async throws -> String {
         guard draft.count <= Self.maxDraftCharacters else { throw Failure.tooLong }
+        return try await chat(RewritePrompt.requestBody(for: draft), onPartial: onPartial)
+    }
+
+    /// モデルに頼み、答えを少しずつ返す（推敲と議事録の要約で使う）。body は llama-server の chat/completions の形。
+    func chat(_ body: [String: Any], onPartial: @MainActor (String) -> Void = { _ in }) async throws -> String {
         let base = try await endpoint()
         var request = URLRequest(url: base.appendingPathComponent("v1/chat/completions"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: RewritePrompt.requestBody(for: draft))
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         request.timeoutInterval = 300
 
         let (bytes, response) = try await URLSession.shared.bytes(for: request)

@@ -8,7 +8,7 @@ final class MainWindow: NSObject, NSWindowDelegate {
     let split = NSSplitViewController()
     private let editor: EditorController
 
-    init(store: NoteStore, editor: EditorController, sidebar: Sidebar) {
+    init(store: NoteStore, editor: EditorController, sidebar: Sidebar, bar: MeetingBar? = nil) {
         self.editor = editor
         let sidebarHost = NSHostingController(rootView: sidebar)
         sidebarHost.sizingOptions = []
@@ -17,8 +17,23 @@ final class MainWindow: NSObject, NSWindowDelegate {
         sidebarItem.maximumThickness = 380
         sidebarItem.canCollapse = true
 
+        // 本文の上に、議事録のバーを浮かべる（下の中央。出ていないときは大きさが 0 で、クリックを邪魔しない）
         let editorHost = NSViewController()
-        editorHost.view = editor.scrollView
+        let container = NSView()
+        editor.scrollView.frame = container.bounds
+        editor.scrollView.autoresizingMask = [.width, .height]
+        container.addSubview(editor.scrollView)
+        if let bar {
+            let overlay = NSHostingView(rootView: bar)
+            overlay.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(overlay)
+            NSLayoutConstraint.activate([
+                overlay.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+                overlay.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+                overlay.widthAnchor.constraint(lessThanOrEqualTo: container.widthAnchor),
+            ])
+        }
+        editorHost.view = container
         let editorItem = NSSplitViewItem(viewController: editorHost)
         editorItem.minimumThickness = 320
 

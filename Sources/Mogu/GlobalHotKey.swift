@@ -3,35 +3,54 @@ import Foundation
 
 /// どのアプリを使っていても効くキー。Carbon のホットキーなので、アクセシビリティの許可は要らない。
 final class GlobalHotKey {
-    /// 既定は ⌃⌥⌘T（上流の Thoughts と同じ）。変えるときはここだけ直す。
-    static let defaultKeyCode = UInt32(kVK_ANSI_T)
-    static let defaultModifiers = UInt32(controlKey | optionKey | cmdKey)
-    static let defaultLabel = "⌃⌥⌘T"
+    struct Key {
+        let code: UInt32
+        let modifiers: UInt32
+        let label: String
+    }
+
+    /// キーを変えるときはここだけ直す。
+    static let newNote = Key(code: UInt32(kVK_ANSI_T), modifiers: UInt32(controlKey | optionKey | cmdKey), label: "⌃⌥⌘T")
+    static let meeting = Key(code: UInt32(kVK_ANSI_R), modifiers: UInt32(controlKey | optionKey | cmdKey), label: "⌃⌥⌘R")
+
+    /// 登録したキーごとの動き。押されたキーの番号で振り分ける。
+    private static var actions: [UInt32: () -> Void] = [:]
+    private static var handlerRef: EventHandlerRef?
+    private static var lastID: UInt32 = 0
 
     private var hotKeyRef: EventHotKeyRef?
-    private var handlerRef: EventHandlerRef?
-    private let action: () -> Void
+    private let id: UInt32
 
-    init?(keyCode: UInt32 = defaultKeyCode, modifiers: UInt32 = defaultModifiers, action: @escaping () -> Void) {
-        self.action = action
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        let me = Unmanaged.passUnretained(self).toOpaque()
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, userData in
-            guard let userData else { return noErr }
-            let hotKey = Unmanaged<GlobalHotKey>.fromOpaque(userData).takeUnretainedValue()
-            DispatchQueue.main.async { hotKey.action() }
-            return noErr
-        }, 1, &spec, me, &handlerRef)
-        let id = EventHotKeyID(signature: OSType(0x4D4F_4755), id: 1)  // "MOGU"
-        let status = RegisterEventHotKey(keyCode, modifiers, id, GetApplicationEventTarget(), 0, &hotKeyRef)
+    init?(_ key: Key, action: @escaping () -> Void) {
+        Self.installHandler()
+        Self.lastID += 1
+        id = Self.lastID
+        let hotKeyID = EventHotKeyID(signature: OSType(0x4D4F_4755), id: id)  // "MOGU"
+        let status = RegisterEventHotKey(key.code, key.modifiers, hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
         guard status == noErr else {
-            NSLog("ホットキーを登録できませんでした（ほかのアプリが使っているかもしれません）: \(status)")
+            NSLog("ホットキー \(key.label) を登録できませんでした（ほかのアプリが使っているかもしれません）: \(status)")
             return nil
         }
+        Self.actions[id] = action
     }
 
     deinit {
         if let hotKeyRef { UnregisterEventHotKey(hotKeyRef) }
-        if let handlerRef { RemoveEventHandler(handlerRef) }
+        Self.actions[id] = nil
+    }
+
+    /// 受け口はアプリに1つだけ置く。
+    private static func installHandler() {
+        guard handlerRef == nil else { return }
+        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        InstallEventHandler(GetApplicationEventTarget(), { _, event, _ in
+            var pressed = EventHotKeyID()
+            let status = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
+                                           nil, MemoryLayout<EventHotKeyID>.size, nil, &pressed)
+            guard status == noErr else { return noErr }
+            let id = pressed.id
+            DispatchQueue.main.async { GlobalHotKey.actions[id]?() }
+            return noErr
+        }, 1, &spec, nil, &handlerRef)
     }
 }

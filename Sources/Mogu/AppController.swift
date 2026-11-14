@@ -12,6 +12,8 @@ final class AppController: NSObject, NSMenuDelegate {
     private var mainWindow: MainWindow!
     private var statusItem: NSStatusItem!
     private var hotKey: GlobalHotKey?
+    private var meetingHotKey: GlobalHotKey?
+    private var meeting: MeetingController!
     private var server: LLMServer!
     private var rewriteWindow: NSWindow?
     private var cancellables: Set<AnyCancellable> = []
@@ -32,7 +34,14 @@ final class AppController: NSObject, NSMenuDelegate {
                               onOpenFirst: { [weak self] in self?.openFirstResult() },
                               onChooseFolder: { [weak self] in self?.chooseFolder() },
                               onTrash: { [weak self] in self?.trash($0) })
-        mainWindow = MainWindow(store: store, editor: editor, sidebar: sidebar)
+        server = LLMServer(home: LLMServer.locateHome())
+        meeting = MeetingController(home: LLMServer.locateHome(), editor: editor, store: store, server: server,
+                                    showWindow: { [weak self] in self?.showWindow() })
+        let bar = MeetingBar(session: meeting.session,
+                             onStop: { [weak self] in self?.toggleMeeting() },
+                             onCancelSummary: { [weak self] in self?.meeting.cancelSummary() },
+                             onInsert: { [weak self] in self?.meeting.insertSummary() })
+        mainWindow = MainWindow(store: store, editor: editor, sidebar: sidebar, bar: bar)
 
         // 一覧で選んだら開く。エディタが保存して新しいファイルができたら、一覧の選択をそれに合わせる。
         store.$selection
@@ -48,10 +57,17 @@ final class AppController: NSObject, NSMenuDelegate {
         }
         store.onExternalChange = { [weak self] in self?.editor.reloadIfChangedOnDisk() }
 
-        server = LLMServer(home: LLMServer.locateHome())
         NSApp.mainMenu = buildMainMenu()
         setUpStatusItem()
-        hotKey = GlobalHotKey { [weak self] in self?.hotKeyPressed() }
+        hotKey = GlobalHotKey(GlobalHotKey.newNote) { [weak self] in self?.hotKeyPressed() }
+        meetingHotKey = GlobalHotKey(GlobalHotKey.meeting) { [weak self] in self?.toggleMeeting() }
+        // 録っている間は、メニューバーのアイコンを赤い丸にする（窓を隠していても、録っているとわかるように）
+        meeting.session.$phase
+            .map { $0 == .recording }
+            .removeDuplicates()
+            .sink { [weak self] recording in self?.updateStatusIcon(recording: recording) }
+            .store(in: &cancellables)
+        meeting.recoverLeftover()
 
         editor.newNote()
         showWindow()
@@ -133,6 +149,21 @@ final class AppController: NSObject, NSMenuDelegate {
         store.setFolder(url)
     }
 
+    // MARK: - 議事録
+
+    /// 録っていなければ新しいノートで始め、録っていれば終える。
+    @objc func toggleMeeting() {
+        meeting.toggle()
+    }
+
+    var isRecording: Bool { meeting?.session.isRecording ?? false }
+
+    /// 終了の前に、録っている会議を終えて文字起こしをノートに入れる（要約は作らない）。
+    func finishMeeting() async {
+        await meeting.stop(summarize: false)
+        editor.save()
+    }
+
     // MARK: - 推敲
 
     /// 選んだ範囲（なければ本文全体）を推敲する。結果はシートで見せ、置き換えるかを選ばせる。
@@ -192,10 +223,29 @@ final class AppController: NSObject, NSMenuDelegate {
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         guard let button = statusItem.button else { return }
-        button.image = NSImage(systemSymbolName: "text.justify.left", accessibilityDescription: Self.appName)
+        updateStatusIcon(recording: false)
         button.target = self
         button.action = #selector(statusItemClicked(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+    }
+
+    private func updateStatusIcon(recording: Bool) {
+        guard let button = statusItem?.button else { return }
+        if recording {
+            let red = NSImage.SymbolConfiguration(paletteColors: [.systemRed])
+            button.image = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "議事録を録っています")?
+                .withSymbolConfiguration(red)
+        } else {
+            button.image = NSImage(systemSymbolName: "text.justify.left", accessibilityDescription: Self.appName)
+        }
+    }
+
+    /// Dock のアイコンを右クリックしたときのメニュー。
+    func dockMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.addItem(item("新しいメモ", #selector(newNote)))
+        menu.addItem(item(isRecording ? "議事録を終える" : "議事録を始める", #selector(toggleMeeting)))
+        return menu
     }
 
     /// 左クリックで窓を出し入れ、右クリック（か ⌃クリック）でメニュー。
@@ -214,7 +264,9 @@ final class AppController: NSObject, NSMenuDelegate {
 
     private func buildStatusMenu() -> NSMenu {
         let menu = NSMenu()
-        menu.addItem(item("新しいメモ（\(GlobalHotKey.defaultLabel)）", #selector(newNote)))
+        menu.addItem(item("新しいメモ（\(GlobalHotKey.newNote.label)）", #selector(newNote)))
+        menu.addItem(item(isRecording ? "議事録を終える（\(GlobalHotKey.meeting.label)）" : "議事録を始める（\(GlobalHotKey.meeting.label)）",
+                          #selector(toggleMeeting)))
         menu.addItem(item("開く", #selector(showFromMenu)))
         menu.addItem(.separator())
         menu.addItem(item("保存先：\(store.folder.lastPathComponent)…", #selector(chooseFolder)))
@@ -251,6 +303,7 @@ final class AppController: NSObject, NSMenuDelegate {
 
         let file = NSMenu(title: "ファイル")
         file.addItem(item("新しいメモ", #selector(newNote), key: "n"))
+        file.addItem(item("議事録を始める・終える", #selector(toggleMeeting), key: "r"))
         file.addItem(item("ノートを探す", #selector(focusSearch), key: "p"))
         file.addItem(item("Markdown でコピー", #selector(copyAsMarkdown), key: "c", modifiers: [.command, .shift]))
         file.addItem(item("Finder で表示", #selector(revealInFinder), key: "r", modifiers: [.command, .shift]))

@@ -4,6 +4,7 @@ import AppKit
 @main
 enum MoguMain {
     static func main() {
+        signal(SIGPIPE, SIG_IGN)  // 文字起こしの speech が先に終わっても、音を書き込む側のこのアプリは落ちないように
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate
@@ -23,6 +24,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         controller?.shutdown()
+    }
+
+    /// 議事録を録っている途中なら、終えて文字起こしをノートに入れてから終了する。
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let controller, controller.isRecording else { return .terminateNow }
+        Task {
+            await controller.finishMeeting()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        controller?.dockMenu()
     }
 
     /// Dock のアイコンを押したときは、窓を出す。

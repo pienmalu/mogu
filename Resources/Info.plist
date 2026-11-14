@@ -22,6 +22,10 @@
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>議事録を録っている間、会議の声を文字にするために使います。音声は Mac の外に送りません。</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>議事録を録っている間、オンライン会議の相手の声を文字にするために、Mac から出る音を取得します。音声は Mac の外に送りません。</string>
     <key>MoguHome</key>
     <string>__HOME__</string>
 </dict>

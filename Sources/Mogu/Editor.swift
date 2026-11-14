@@ -253,6 +253,18 @@ final class EditorController: NSObject, NSTextViewDelegate {
         textView.setSelectedRange(NSRange(location: range.location, length: (text as NSString).length))
     }
 
+    /// 文字を足す（Undo できる形で）。カーソルは、いま書いている場所から動かさない。議事録の挿入に使う。
+    func insert(_ text: String, at location: Int) {
+        let selection = textView.selectedRange()
+        let range = NSRange(location: min(location, (textView.string as NSString).length), length: 0)
+        guard textView.shouldChangeText(in: range, replacementString: text) else { return }
+        textView.textStorage?.replaceCharacters(in: range, with: text)
+        textView.didChangeText()
+        // 挿入した場所より後ろを書いていたら、その分だけずらす
+        let moved = selection.location > range.location ? selection.location + (text as NSString).length : selection.location
+        textView.setSelectedRange(NSRange(location: moved, length: selection.length))
+    }
+
     // MARK: - 補助
 
     static func modificationDate(_ url: URL) -> Date? {
