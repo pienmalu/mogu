@@ -63,6 +63,11 @@ final class MeetingController {
         do {
             try session.start(noteURL: editor.url)
         } catch {
+            // 見出しだけのノートを残さない（ゴミ箱へ）
+            if let url = editor.url {
+                editor.discard()
+                store.trash(url)
+            }
             alert("議事録を始められません", error.localizedDescription)
             return
         }

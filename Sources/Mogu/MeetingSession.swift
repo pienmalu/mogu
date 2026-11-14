@@ -186,7 +186,12 @@ final class MeetingAudio: @unchecked Sendable {
         me.onEvent = { [weak self] in self?.handle($0, speaker: .me, offset: 0) }
         me.start()
         mic.onAudio = { [weak self] pcm, level in self?.fromMic(pcm, level) }
-        try mic.start()
+        do {
+            try mic.start()
+        } catch {
+            me.cancel()  // 先に起動した文字起こしを残さない
+            throw error
+        }
         if #available(macOS 14.2, *) {
             let system = SystemAudioCapture()
             system.onAudio = { [weak self] pcm, level in self?.fromSystem(pcm, level) }

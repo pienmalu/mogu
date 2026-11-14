@@ -67,6 +67,19 @@ enum RenderMain {
         shootMain("window-caret-on-heading", theme: .light, notes: Samples.notes, open: first, select: NSRange(location: 4, length: 0))
         shootMain("window-caret-in-bold", theme: .light, notes: Samples.notes, open: first, select: NSRange(location: 22, length: 0))
 
+        shootMain("window-caret-in-checkbox", theme: .light, notes: Samples.notes, open: first,
+                  select: NSRange(location: (Samples.long as NSString).range(of: "- [ ] 実験").location + 1, length: 0))
+        shootMain("window-caret-in-code", theme: .light, notes: Samples.codeNotes, open: first,
+                  select: NSRange(location: (Samples.code as NSString).range(of: "print").location, length: 0))
+        shootMain("window-caret-on-rule", theme: .light, notes: Samples.codeNotes, open: first,
+                  select: NSRange(location: (Samples.code as NSString).range(of: "---").location + 1, length: 0))
+        // 一覧を畳んで、また開いたあと
+        shootMain("window-after-collapse", theme: .light, notes: Samples.notes, open: first) { main, _, _, _ in
+            main.split.splitViewItems.first?.isCollapsed = true
+            pump(0.4)
+            main.split.splitViewItems.first?.isCollapsed = false
+        }
+
         // 議事録のバー
         let levels: [Float] = [0.2, 0.75, 0.45, 0.9, 0.3]
         for theme in Theme.Kind.allCases {
@@ -266,6 +279,8 @@ enum Samples {
         ("20260912-100000.md", "旅行の持ち物\n- パスポート\n- 充電器\n"),
     ]
 
+    static let code = "コードと線\n\n---\n\n```swift\nlet note = \"殴り書き\"\nprint(note)\n```\n\n終わり\n"
+    static let codeNotes: [(String, String)] = [("20261111-083000.md", code)] + notes.dropFirst()
     static let meetingFile = "20261114-150000.md"
     static let meetingNotes: [(String, String)] = [(meetingFile, "# 会議 2026-11-14 15:00\n\n- リリース日を決める\n- テストは田中さん\n")] + notes.dropFirst()
     static let meetingDoneNotes: [(String, String)] = [(meetingFile, meetingDone)] + notes.dropFirst()

@@ -293,7 +293,9 @@ final class EditorController: NSObject, NSTextViewDelegate, @preconcurrency NSTe
         let fences = MarkdownStyler.fenceCount(in: storage.string)
         var lines: NSRange?
         if edits.count == 1, fences == fenceCount, NSMaxRange(edits[0]) <= storage.length {
-            let range = (storage.string as NSString).paragraphRange(for: edits[0])
+            // 改行を入れて行を分けたときは、後ろ半分の行も変わる。1字後ろまで含めて、次の行も付け直す
+            let edited = NSRange(location: edits[0].location, length: min(edits[0].length + 1, storage.length - edits[0].location))
+            let range = (storage.string as NSString).paragraphRange(for: edited)
             if MarkdownStyler.canRestyleLocally(storage, lines: range) { lines = range }
         }
         MarkdownStyler.apply(to: storage, in: lines)

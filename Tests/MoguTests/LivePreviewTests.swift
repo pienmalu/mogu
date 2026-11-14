@@ -94,6 +94,42 @@ final class LivePreviewTests: XCTestCase {
         }
     }
 
+    /// 書き換えたあとの見た目が、全体を付け直したものと同じか。
+    private func assertMatchesFullRestyle(_ editor: EditorController, file: StaticString = #filePath, line: UInt = #line) {
+        let incremental = NSAttributedString(attributedString: editor.textView.textStorage!)
+        let full = NSTextStorage(string: editor.textView.string)
+        MarkdownStyler.apply(to: full)
+        for index in 0..<full.length {
+            for key in [NSAttributedString.Key.font, .foregroundColor, .paragraphStyle, .moguBlock, .moguCheckbox] {
+                XCTAssertEqual(incremental.attribute(key, at: index, effectiveRange: nil) as? NSObject,
+                               full.attribute(key, at: index, effectiveRange: nil) as? NSObject,
+                               "\(key.rawValue) が \(index) 文字目で違う", file: file, line: line)
+            }
+            XCTAssertEqual(incremental.attribute(.moguScope, at: index, effectiveRange: nil) != nil,
+                           full.attribute(.moguScope, at: index, effectiveRange: nil) != nil,
+                           "隠す記号かどうかが \(index) 文字目で違う", file: file, line: line)
+        }
+    }
+
+    func testSplittingALineRestylesBothHalves() {
+        let (heading, _, _) = makeEditor("# 見出し続き\n後", caret: 5)
+        heading.textView.insertText("\n", replacementRange: NSRange(location: 5, length: 0))
+        assertMatchesFullRestyle(heading)
+
+        let text = "これは**太字**です\n後"
+        let (bold, _, _) = makeEditor(text, caret: 6)
+        bold.textView.insertText("\n", replacementRange: NSRange(location: 6, length: 0))
+        assertMatchesFullRestyle(bold)
+
+        let (pasted, _, _) = makeEditor("- [ ] 牛乳と卵\n後", caret: 8)
+        pasted.textView.insertText("X\n", replacementRange: NSRange(location: 8, length: 0))
+        assertMatchesFullRestyle(pasted)
+
+        let (joined, _, _) = makeEditor("# 見出し\n**太字**\n後", caret: 6)
+        joined.textView.insertText("", replacementRange: NSRange(location: 5, length: 1))
+        assertMatchesFullRestyle(joined)
+    }
+
     func testSlashCommandsFilter() {
         XCTAssertEqual(SlashCommand.matching("").count, SlashCommand.all.count)
         XCTAssertEqual(SlashCommand.matching("mi").map(\.title), ["見出し 1", "見出し 2", "見出し 3"])
