@@ -121,6 +121,14 @@ final class MeetingSession: ObservableObject {
         }
     }
 
+    /// 見た目の確認用（tools/Render.swift）。録らずに、画面に出す状態だけを作る。
+    func preview(_ phase: Phase, elapsed: TimeInterval = 0, levels: [Float] = [], caption: String = "") {
+        started = Date().addingTimeInterval(-elapsed)
+        self.levels = levels.isEmpty ? self.levels : levels
+        self.caption = caption
+        self.phase = phase
+    }
+
     private func add(_ utterance: Utterance) {
         utterances.append(utterance)
         journal.append(utterance)

@@ -32,7 +32,8 @@ enum RenderMain {
 
     // MARK: - 本文だけ
 
-    @MainActor static func renderEditor(_ text: String, name: String, theme: Theme.Kind, width: CGFloat = 820, height: CGFloat = 900) {
+    @MainActor static func renderEditor(_ text: String, name: String, theme: Theme.Kind, width: CGFloat = 820, height: CGFloat = 900,
+                                        caret: Int? = nil) {
         let folder = scratchFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
         let editor = EditorController(folder: folder)
@@ -42,6 +43,7 @@ enum RenderMain {
         window.contentView = editor.scrollView
         editor.newNote()
         editor.textView.string = text
+        editor.textView.setSelectedRange(NSRange(location: caret ?? (text as NSString).length, length: 0))
         editor.textDidChange(Notification(name: NSText.didChangeNotification, object: editor.textView))
         pump(0.1)
         let view = editor.scrollView
@@ -53,20 +55,79 @@ enum RenderMain {
     // MARK: - 窓全体
 
     @MainActor static func renderWindows() {
+        let first = "20261111-083000.md"
         for theme in Theme.Kind.allCases {
-            shootMain("window-\(theme)", theme: theme, notes: Samples.notes, open: "20261111-083000.md")
+            shootMain("window-\(theme)", theme: theme, notes: Samples.notes, open: first)
         }
-        shootMain("window-search-empty", theme: .light, notes: Samples.notes, open: "20261111-083000.md", query: "存在しない言葉")
         shootMain("window-empty-folder", theme: .light, notes: [], open: nil)
-        shootMain("window-narrow", theme: .light, notes: Samples.notes, open: "20261111-083000.md", size: NSSize(width: 560, height: 640))
-        shootMain("window-no-sidebar", theme: .dark, notes: Samples.notes, open: "20261111-083000.md", collapse: true)
-        shootMain("window-selection", theme: .light, notes: Samples.notes, open: "20261111-083000.md",
-                  select: NSRange(location: 40, length: 30))
+        shootMain("window-narrow", theme: .light, notes: Samples.notes, open: first, size: NSSize(width: 560, height: 640))
+        shootMain("window-no-sidebar", theme: .dark, notes: Samples.notes, open: first, collapse: true)
+        shootMain("window-selection", theme: .light, notes: Samples.notes, open: first, select: NSRange(location: 40, length: 30))
+        // カーソルのある所だけ、記号が見える
+        shootMain("window-caret-on-heading", theme: .light, notes: Samples.notes, open: first, select: NSRange(location: 4, length: 0))
+        shootMain("window-caret-in-bold", theme: .light, notes: Samples.notes, open: first, select: NSRange(location: 22, length: 0))
+
+        // 議事録のバー
+        let levels: [Float] = [0.2, 0.75, 0.45, 0.9, 0.3]
+        for theme in Theme.Kind.allCases {
+            shootMain("meeting-recording-\(theme)", theme: theme, notes: Samples.meetingNotes, open: Samples.meetingFile) { _, _, _, session in
+                session.preview(.recording, elapsed: 754, levels: levels, caption: "リリースは12月10日に決めましょう。田中さんは金曜日までに")
+            }
+        }
+        shootMain("meeting-listening", theme: .light, notes: Samples.meetingNotes, open: Samples.meetingFile) { _, _, _, session in
+            session.preview(.recording, elapsed: 3, levels: [0, 0.05, 0, 0.1, 0])
+        }
+        shootMain("meeting-finishing", theme: .light, notes: Samples.meetingNotes, open: Samples.meetingFile) { _, _, _, session in
+            session.preview(.finishing)
+        }
+        shootMain("meeting-summarizing", theme: .light, notes: Samples.meetingNotes, open: Samples.meetingFile) { _, _, _, session in
+            session.preview(.summarizing("要点を拾っています 2/4"))
+        }
+        shootMain("meeting-ready", theme: .dark, notes: Samples.meetingNotes, open: Samples.meetingFile) { _, _, _, session in
+            session.preview(.ready)
+        }
+        shootMain("meeting-notice", theme: .light, notes: Samples.meetingNotes, open: Samples.meetingFile) { _, _, _, session in
+            session.preview(.notice("議事録ができました"))
+        }
+        shootMain("meeting-narrow", theme: .light, notes: Samples.meetingNotes, open: Samples.meetingFile, size: NSSize(width: 560, height: 640),
+                  collapse: true) { _, _, _, session in
+            session.preview(.recording, elapsed: 4321, levels: levels, caption: "リリースは12月10日に決めましょう。田中さんは金曜日までに")
+        }
+        shootMain("meeting-done", theme: .light, notes: Samples.meetingDoneNotes, open: Samples.meetingFile)
+
+        // 「/」のメニューと、ノートを探す窓（別の窓として浮かぶので、画面の範囲で撮る）
+        for theme in Theme.Kind.allCases {
+            shootMain("slash-\(theme)", theme: theme, notes: Samples.notes, open: "20261110-221500.md", region: true) { _, editor, _, _ in
+                let end = (editor.textView.string as NSString).length
+                editor.textView.setSelectedRange(NSRange(location: end, length: 0))
+                editor.textView.insertText("/", replacementRange: NSRange(location: end, length: 0))
+            }
+        }
+        shootMain("slash-filtered", theme: .light, notes: Samples.notes, open: "20261110-221500.md", region: true) { _, editor, _, _ in
+            let end = (editor.textView.string as NSString).length
+            editor.textView.setSelectedRange(NSRange(location: end, length: 0))
+            editor.textView.insertText("/", replacementRange: NSRange(location: end, length: 0))
+            editor.textView.insertText("mi", replacementRange: editor.textView.selectedRange())
+        }
+        for theme in Theme.Kind.allCases {
+            shootMain("quickopen-\(theme)", theme: theme, notes: Samples.notes, open: first, region: true) { main, _, store, _ in
+                keep = QuickOpen(onOpen: { _ in }, onCreate: { _ in })
+                (keep as? QuickOpen)?.toggle(notes: store.notes, over: main.window)
+            }
+        }
+        shootMain("quickopen-query", theme: .light, notes: Samples.notes, open: first, region: true) { main, _, store, _ in
+            keep = QuickOpen(onOpen: { _ in }, onCreate: { _ in })
+            (keep as? QuickOpen)?.toggle(notes: store.notes, over: main.window, query: "論文")
+        }
     }
 
+    /// 撮り終えるまで生かしておくもの。
+    @MainActor static var keep: Any?
+
     @MainActor static func shootMain(_ name: String, theme: Theme.Kind, notes: [(String, String)], open: String?,
-                                     query: String = "", size: NSSize = NSSize(width: 1040, height: 720),
-                                     collapse: Bool = false, select: NSRange? = nil) {
+                                     size: NSSize = NSSize(width: 1040, height: 720),
+                                     collapse: Bool = false, select: NSRange? = nil, region: Bool = false,
+                                     prepare: ((MainWindow, EditorController, NoteStore, MeetingSession) -> Void)? = nil) {
         let folder = scratchFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
         for (index, (file, text)) in notes.enumerated() {
@@ -78,10 +139,13 @@ enum RenderMain {
         NSApp.appearance = theme.appearance
         let store = NoteStore(folder: folder)
         let editor = EditorController(folder: folder)
-        let sidebar = Sidebar(store: store, onNew: {}, onOpenFirst: {}, onChooseFolder: {}, onTrash: { _ in })
-        let main = MainWindow(store: store, editor: editor, sidebar: sidebar)
+        let session = MeetingSession(files: SpeechFiles(home: folder), journal: MeetingJournal(url: folder.appendingPathComponent(".journal")))
+        let sidebar = Sidebar(store: store, meeting: session, onSearch: {}, onNew: {}, onMeeting: {}, onChooseFolder: {}, onTrash: { _ in })
+        let bar = MeetingBar(session: session, onStop: {}, onCancelSummary: {}, onInsert: {})
+        let main = MainWindow(store: store, editor: editor, sidebar: sidebar, bar: bar)
         main.window.appearance = theme.appearance
         main.window.setContentSize(size)
+        main.window.center()
         if let open {
             let target = folder.appendingPathComponent(open).standardizedFileURL
             editor.open(target)
@@ -92,9 +156,10 @@ enum RenderMain {
             editor.newNote()
             pump(0.3)
         }
-        store.query = query
         main.split.splitViewItems.first?.isCollapsed = collapse  // 前回の状態が残っていても、撮る場面どおりにする
-        if let select { editor.textView.setSelectedRange(select) }
+        // 記号を隠した姿を撮る（カーソルは文末に置く）。select を渡した場面だけ、その場所の記号が見える
+        editor.textView.setSelectedRange(select ?? NSRange(location: (editor.textView.string as NSString).length, length: 0))
+        editor.textView.scrollToBeginningOfDocument(nil)
         if wantsActive {
             NSApp.activate(ignoringOtherApps: true)
             main.window.makeKeyAndOrderFront(nil)
@@ -102,8 +167,12 @@ enum RenderMain {
         } else {
             main.window.orderFrontRegardless()
         }
-        pump(0.6)
-        capture(main.window, name)
+        pump(0.3)
+        prepare?(main, editor, store, session)
+        pump(0.7)
+        capture(main.window, name, region: region)
+        keep = nil
+        editor.slashMenu.close()
         main.window.orderOut(nil)
     }
 
@@ -151,11 +220,18 @@ enum RenderMain {
         while Date() < end { RunLoop.main.run(until: Date().addingTimeInterval(0.02)) }
     }
 
-    static func capture(_ window: NSWindow, _ name: String) {
+    /// region が true なら、窓のある画面の範囲を撮る（上に浮かぶ板も写る）。
+    static func capture(_ window: NSWindow, _ name: String, region: Bool = false) {
         let file = out.appendingPathComponent("\(name).png")
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        task.arguments = ["-x", "-o", "-l", "\(window.windowNumber)", file.path]
+        if region, let screen = window.screen {
+            let f = window.frame
+            let rect = "\(Int(f.minX)),\(Int(screen.frame.maxY - f.maxY)),\(Int(f.width)),\(Int(f.height))"
+            task.arguments = ["-x", "-R", rect, file.path]
+        } else {
+            task.arguments = ["-x", "-o", "-l", "\(window.windowNumber)", file.path]
+        }
         try? task.run()
         task.waitUntilExit()
         print(task.terminationStatus == 0 ? file.path : "撮れませんでした: \(name)")
@@ -189,6 +265,37 @@ enum Samples {
         ("20261022-130000.md", "Swift の `Observation` を試す。SwiftUI との相性は良さそう。\n"),
         ("20260912-100000.md", "旅行の持ち物\n- パスポート\n- 充電器\n"),
     ]
+
+    static let meetingFile = "20261114-150000.md"
+    static let meetingNotes: [(String, String)] = [(meetingFile, "# 会議 2026-11-14 15:00\n\n- リリース日を決める\n- テストは田中さん\n")] + notes.dropFirst()
+    static let meetingDoneNotes: [(String, String)] = [(meetingFile, meetingDone)] + notes.dropFirst()
+
+    static let meetingDone = """
+    # 会議 2026-11-14 15:00
+
+    - リリース日を決める
+    - テストは田中さん
+
+    ## 要約
+    - 来月のリリース計画と、テストの進め方を話し合った
+    - リリース日は 12 月 10 日に決まった
+    - テスト項目の洗い出しは田中さんが担当する
+
+    ## 決定事項
+    - リリース日は 12 月 10 日とする
+
+    ## TODO
+    - [ ] 田中さんは金曜日までにテスト項目を洗い出す
+    - [x] 次回の日程を決める
+
+    ## 文字起こし
+
+    `00:00` **自分** それでは定例会議を始めます。今日の議題は来月のリリース計画とテストの進め方の2つです。
+
+    `00:12` **相手** はい。リリースは12月10日に決めましょう。田中さんは金曜日までにテスト項目を洗い出してください。
+
+    `00:31` **自分** わかりました。では次回の日程を決めて終わりにします。
+    """
 
     static let editor: [(String, String)] = [
         ("long", long),

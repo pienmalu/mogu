@@ -11,6 +11,11 @@ final class Theme {
     /// 本文の幅の上限。窓が広くても1行が長くなりすぎないように。
     var columnWidth: CGFloat = 680
 
+    /// カーソルのない所では、Markdown の記号（#、**、- [ ] など）を隠す。false にすると、いつも薄く見せる。
+    var hidesMarkers = true
+    /// チェックボックスの一辺。
+    var checkboxSize: CGFloat = 15
+
     var bodyFont: NSFont { .systemFont(ofSize: fontSize) }
     var monoFont: NSFont { .monospacedSystemFont(ofSize: fontSize - 1.5, weight: .regular) }
 
@@ -39,6 +44,7 @@ final class Theme {
             ? NSColor(white: 1, alpha: 0.07) : NSColor(white: 0, alpha: 0.045)
     }
     var quoteBar: NSColor { .tertiaryLabelColor }
+    var checkboxBorder: NSColor { .tertiaryLabelColor }
 
     // MARK: - 段落（行の高さは固定。文字は BlockLayoutManager が行の真ん中に置く）
 
@@ -67,10 +73,19 @@ final class Theme {
         paragraph(lineHeight: (monoFont.pointSize * 1.5).rounded(), indent: 12, tailIndent: -12)  // 背景の内側の余白
     }
 
-    /// 箇条書きの2行目以降を、記号の後ろの文字にそろえる。
+    /// 箇条書きの2行目以降を、記号の後ろの文字にそろえる。prefix は行頭から記号の後ろの空白まで（「  - [ ] 」など）。
     func listParagraph(prefix: String) -> NSParagraphStyle {
-        let width = (prefix as NSString).size(withAttributes: [.font: bodyFont]).width
-        return paragraph(lineHeight: lineHeight, after: 1, indent: ceil(width), firstIndent: 0)
+        func width(_ text: String) -> CGFloat { (text as NSString).size(withAttributes: [.font: bodyFont]).width }
+        var indent = width(prefix)
+        if hidesMarkers, let box = prefix.range(of: "[") {
+            // 見えるのは、字下げ、チェックボックス、その後ろの空白
+            let lead = String(prefix.prefix { $0 == " " || $0 == "\t" })
+            let tail = String(prefix[box.lowerBound...].dropFirst(3))
+            indent = width(lead) + checkboxSize + 1 + width(tail)
+        } else if hidesMarkers {
+            indent = width(prefix.replacingOccurrences(of: "[-*+]", with: "•", options: .regularExpression))
+        }
+        return paragraph(lineHeight: lineHeight, after: 1, indent: ceil(indent), firstIndent: 0)
     }
 
     var baseAttributes: [NSAttributedString.Key: Any] {

@@ -14,6 +14,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private var hotKey: GlobalHotKey?
     private var meetingHotKey: GlobalHotKey?
     private var meeting: MeetingController!
+    private var quickOpen: QuickOpen!
     private var server: LLMServer!
     private var rewriteWindow: NSWindow?
     private var cancellables: Set<AnyCancellable> = []
@@ -29,14 +30,24 @@ final class AppController: NSObject, NSMenuDelegate {
         store = NoteStore(folder: folder)
         editor = EditorController(folder: folder)
 
-        let sidebar = Sidebar(store: store,
-                              onNew: { [weak self] in self?.newNote() },
-                              onOpenFirst: { [weak self] in self?.openFirstResult() },
-                              onChooseFolder: { [weak self] in self?.chooseFolder() },
-                              onTrash: { [weak self] in self?.trash($0) })
         server = LLMServer(home: LLMServer.locateHome())
         meeting = MeetingController(home: LLMServer.locateHome(), editor: editor, store: store, server: server,
                                     showWindow: { [weak self] in self?.showWindow() })
+        let sidebar = Sidebar(store: store, meeting: meeting.session,
+                              onSearch: { [weak self] in self?.focusSearch() },
+                              onNew: { [weak self] in self?.newNote() },
+                              onMeeting: { [weak self] in self?.toggleMeeting() },
+                              onChooseFolder: { [weak self] in self?.chooseFolder() },
+                              onTrash: { [weak self] in self?.trash($0) })
+        quickOpen = QuickOpen(onOpen: { [weak self] in self?.open($0) },
+                              onCreate: { [weak self] in self?.createNote(titled: $0) })
+        editor.slashMenu.onAction = { [weak self] action in
+            switch action {
+            case .meeting: self?.toggleMeeting()
+            case .rewrite: self?.rewrite()
+            default: break
+            }
+        }
         let bar = MeetingBar(session: meeting.session,
                              onStop: { [weak self] in self?.toggleMeeting() },
                              onCancelSummary: { [weak self] in self?.meeting.cancelSummary() },
@@ -104,18 +115,22 @@ final class AppController: NSObject, NSMenuDelegate {
 
     @objc func hideWindow() { mainWindow.hide() }
 
+    /// ノートを探す窓を出す（もう一度押すと閉じる）。
     @objc func focusSearch() {
         mainWindow.show(focusEditor: false)
-        if mainWindow.split.splitViewItems.first?.isCollapsed == true {
-            mainWindow.split.splitViewItems.first?.animator().isCollapsed = false
-        }
-        store.focusSearch.send()
+        quickOpen.toggle(notes: store.notes, over: mainWindow.window)
     }
 
-    private func openFirstResult() {
-        guard let first = store.visible.first else { return }
-        store.selection = first.url
-        mainWindow.window.makeFirstResponder(editor.textView)
+    private func open(_ url: URL) {
+        store.selection = url
+        mainWindow.show()
+    }
+
+    /// 探した言葉を題にして、新しいメモを作る。
+    private func createNote(titled title: String) {
+        newNote()
+        editor.insert("# \(title)\n\n", at: 0)
+        editor.textView.setSelectedRange(NSRange(location: (editor.textView.string as NSString).length, length: 0))
     }
 
     @objc func copyAsMarkdown() { editor.copyAll() }
@@ -326,6 +341,30 @@ final class AppController: NSObject, NSMenuDelegate {
         edit.addItem(.separator())
         edit.addItem(item("推敲", #selector(rewrite), key: "j"))
         add(edit, to: main, title: "編集")
+
+        // 書式。どれも Markdown の記号を足したり外したりする（本文の欄が受け取る）
+        let format = NSMenu(title: "書式")
+        func formatItem(_ title: String, _ action: Selector, _ key: String, _ modifiers: NSEvent.ModifierFlags = .command, tag: Int = 0) {
+            let entry = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            entry.keyEquivalentModifierMask = modifiers
+            entry.tag = tag
+            format.addItem(entry)
+        }
+        formatItem("太字", #selector(MarkdownTextView.toggleBold(_:)), "b")
+        formatItem("斜体", #selector(MarkdownTextView.toggleItalic(_:)), "i")
+        formatItem("取り消し線", #selector(MarkdownTextView.toggleStrike(_:)), "x", [.command, .shift])
+        formatItem("コード", #selector(MarkdownTextView.toggleCode(_:)), "e")
+        formatItem("リンク", #selector(MarkdownTextView.makeLink(_:)), "k")
+        format.addItem(.separator())
+        formatItem("ふつうの文", #selector(MarkdownTextView.setHeading(_:)), "0", [.command, .option], tag: 0)
+        formatItem("見出し 1", #selector(MarkdownTextView.setHeading(_:)), "1", [.command, .option], tag: 1)
+        formatItem("見出し 2", #selector(MarkdownTextView.setHeading(_:)), "2", [.command, .option], tag: 2)
+        formatItem("見出し 3", #selector(MarkdownTextView.setHeading(_:)), "3", [.command, .option], tag: 3)
+        format.addItem(.separator())
+        formatItem("ToDo にする・チェックする", #selector(MarkdownTextView.toggleTask(_:)), "\r")
+        formatItem("行を上へ", #selector(MarkdownTextView.moveLineUp(_:)), String(UnicodeScalar(NSUpArrowFunctionKey)!), [.command, .control])
+        formatItem("行を下へ", #selector(MarkdownTextView.moveLineDown(_:)), String(UnicodeScalar(NSDownArrowFunctionKey)!), [.command, .control])
+        add(format, to: main, title: "書式")
 
         let view = NSMenu(title: "表示")
         view.addItem(item("一覧を出す・隠す", #selector(toggleSidebar), key: "s", modifiers: [.command, .control]))

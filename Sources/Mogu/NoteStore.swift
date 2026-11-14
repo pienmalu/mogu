@@ -16,10 +16,7 @@ struct NoteSummary: Identifiable, Hashable {
 final class NoteStore: ObservableObject {
     @Published private(set) var folder: URL
     @Published private(set) var notes: [NoteSummary] = []
-    @Published var query = ""
     @Published var selection: URL?
-    /// 検索欄に移る合図（⌘P）。
-    let focusSearch = PassthroughSubject<Void, Never>()
 
     private var cache: [URL: NoteSummary] = [:]
     private var watcher: FolderWatcher?
@@ -32,13 +29,6 @@ final class NoteStore: ObservableObject {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         watch()
         reload()
-    }
-
-    /// 検索語（空白区切り）をすべて含むノート。
-    var visible: [NoteSummary] {
-        let words = query.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
-        guard !words.isEmpty else { return notes }
-        return notes.filter { note in words.allSatisfy { note.searchText.contains($0) } }
     }
 
     func setFolder(_ url: URL) {
