@@ -15,6 +15,8 @@ final class Theme {
     var hidesMarkers = true
     /// チェックボックスの一辺。
     var checkboxSize: CGFloat = 15
+    /// チェックボックスと、その後ろの文字の間（後ろの空白1つ分に足す）。
+    var checkboxGap: CGFloat = 4
 
     var bodyFont: NSFont { .systemFont(ofSize: fontSize) }
     var monoFont: NSFont { .monospacedSystemFont(ofSize: fontSize - 1.5, weight: .regular) }
@@ -81,7 +83,7 @@ final class Theme {
             // 見えるのは、字下げ、チェックボックス、その後ろの空白
             let lead = String(prefix.prefix { $0 == " " || $0 == "\t" })
             let tail = String(prefix[box.lowerBound...].dropFirst(3))
-            indent = width(lead) + checkboxSize + 1 + width(tail)
+            indent = width(lead) + checkboxSize + checkboxGap + width(tail)
         } else if hidesMarkers {
             indent = width(prefix.replacingOccurrences(of: "[-*+]", with: "•", options: .regularExpression))
         }

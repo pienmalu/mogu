@@ -20,7 +20,7 @@ struct SlashCommand: Identifiable, Equatable {
     var id: String { title }
 
     static let all: [SlashCommand] = [
-        SlashCommand(title: "テキスト", symbol: "textformat", hint: "", keywords: ["text", "plain", "tekisuto"], action: .block("")),
+        SlashCommand(title: "テキスト", symbol: "text.alignleft", hint: "", keywords: ["text", "plain", "tekisuto"], action: .block("")),
         SlashCommand(title: "見出し 1", symbol: "1.square", hint: "#", keywords: ["h1", "heading", "midashi"], action: .block("# ")),
         SlashCommand(title: "見出し 2", symbol: "2.square", hint: "##", keywords: ["h2", "heading", "midashi"], action: .block("## ")),
         SlashCommand(title: "見出し 3", symbol: "3.square", hint: "###", keywords: ["h3", "heading", "midashi"], action: .block("### ")),

@@ -203,7 +203,7 @@ final class BlockLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         if let storage = textStorage, charIndex < storage.length,
            storage.attribute(.moguCheckbox, at: charIndex, longestEffectiveRange: &box, in: NSRange(location: 0, length: storage.length)) != nil,
            box.location == charIndex {
-            width = Theme.shared.checkboxSize + 1
+            width = Theme.shared.checkboxSize + Theme.shared.checkboxGap
         }
         return NSRect(x: glyphPosition.x, y: proposedRect.minY, width: width, height: proposedRect.height)
     }
@@ -304,7 +304,7 @@ final class BlockLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
                 box.origin.y += ((box.height - height) / 2).rounded()
                 box.size.height = height
                 theme.codeBackground.setFill()
-                NSBezierPath(roundedRect: box.insetBy(dx: -3, dy: 0), xRadius: 4, yRadius: 4).fill()
+                NSBezierPath(roundedRect: box.insetBy(dx: -2, dy: 0), xRadius: 4, yRadius: 4).fill()
             }
         }
 
