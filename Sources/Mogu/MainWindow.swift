@@ -57,6 +57,48 @@ final class MainWindow: NSObject, NSWindowDelegate {
         window.delegate = self
     }
 
+    // MARK: - 透かして手前に出す
+
+    private(set) var isOverlay = false
+    /// 透かす前に、一覧が出ていたか（戻すときに出し直す）。
+    private var sidebarWasOpen = true
+
+    /// 窓を半透明にして、ほかのアプリの窓より手前に置いたままにする。文字は薄めず、下地だけ透かす。
+    func setOverlay(_ on: Bool) {
+        guard on != isOverlay else { return }
+        isOverlay = on
+        window.level = on ? .floating : .normal
+        window.isOpaque = !on
+        window.backgroundColor = on ? Theme.shared.overlayBackground : .windowBackgroundColor
+        // 透かしている間は、どのデスクトップにも付いてくる
+        window.collectionBehavior = on ? [.canJoinAllSpaces, .fullScreenAuxiliary] : [.moveToActiveSpace, .fullScreenAuxiliary]
+        editor.setTranslucent(on)
+        // 一覧はすりガラスで透けないので、畳む（⌃⌘S でいつでも出せる）
+        // 一覧を出し入れすると本文が上へ流れるので、読んでいる所を覚えておいて戻す
+        let clip = editor.scrollView.contentView
+        let origin = clip.bounds.origin
+        if let sidebar = split.splitViewItems.first {
+            if on {
+                sidebarWasOpen = !sidebar.isCollapsed
+                sidebar.isCollapsed = true
+            } else if sidebarWasOpen {
+                sidebar.isCollapsed = false
+            }
+        }
+        split.view.layoutSubtreeIfNeeded()
+        let restore = { [editor] in
+            guard clip.bounds.origin != origin else { return }
+            clip.scroll(to: origin)
+            editor.scrollView.reflectScrolledClipView(clip)
+        }
+        restore()
+        DispatchQueue.main.async { [weak self] in
+            restore()
+            // 影は窓の形から作られるので、下地を替えた後に作り直す
+            self?.window.invalidateShadow()
+        }
+    }
+
     var isFrontmost: Bool { window.isVisible && window.isKeyWindow && NSApp.isActive }
 
     func show(focusEditor: Bool = true) {

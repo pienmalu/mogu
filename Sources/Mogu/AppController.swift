@@ -17,6 +17,7 @@ final class AppController: NSObject, NSMenuDelegate {
     private var quickOpen: QuickOpen!
     private var server: LLMServer!
     private var rewriteWindow: NSWindow?
+    private var overlayItem: NSMenuItem?
     private var cancellables: Set<AnyCancellable> = []
 
     static var defaultFolder: URL {
@@ -229,6 +230,13 @@ final class AppController: NSObject, NSMenuDelegate {
         mainWindow.split.toggleSidebar(nil)
     }
 
+    /// 窓を半透明にして、ほかの窓の手前に置いたままにする（もう一度で戻す）。
+    @objc func toggleOverlay() {
+        let on = !mainWindow.isOverlay
+        mainWindow.setOverlay(on)
+        overlayItem?.state = on ? .on : .off
+    }
+
     @objc func quit() {
         NSApp.terminate(nil)
     }
@@ -283,6 +291,9 @@ final class AppController: NSObject, NSMenuDelegate {
         menu.addItem(item(isRecording ? "議事録を終える（\(GlobalHotKey.meeting.label)）" : "議事録を始める（\(GlobalHotKey.meeting.label)）",
                           #selector(toggleMeeting)))
         menu.addItem(item("開く", #selector(showFromMenu)))
+        let overlay = item("透かして手前に出す（⌃⌘O）", #selector(toggleOverlay))
+        overlay.state = mainWindow.isOverlay ? .on : .off
+        menu.addItem(overlay)
         menu.addItem(.separator())
         menu.addItem(item("保存先：\(store.folder.lastPathComponent)…", #selector(chooseFolder)))
         menu.addItem(item("Finder で開く", #selector(revealInFinder)))
@@ -368,6 +379,10 @@ final class AppController: NSObject, NSMenuDelegate {
 
         let view = NSMenu(title: "表示")
         view.addItem(item("一覧を出す・隠す", #selector(toggleSidebar), key: "s", modifiers: [.command, .control]))
+        let overlay = item("透かして手前に出す", #selector(toggleOverlay), key: "o", modifiers: [.command, .control])
+        overlay.state = mainWindow.isOverlay ? .on : .off
+        overlayItem = overlay
+        view.addItem(overlay)
         add(view, to: main, title: "表示")
         return main
     }

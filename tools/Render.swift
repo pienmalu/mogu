@@ -6,12 +6,14 @@ import SwiftUI
 ///   なし       … 本文だけ（画面に出さずに描く）
 ///   --window   … 窓全体とシートも撮る（画面に一瞬出る。画面収録の許可が要る）
 ///   --active   … 窓を前に出してキーにする（カーソルと選択の色が本物になる。一瞬フォーカスを奪う）
+///   --only=語  … 窓全体の場面のうち、名前にその語を含むものだけを撮る
 @main
 enum RenderMain {
     static let args = CommandLine.arguments
     static let out = URL(fileURLWithPath: args.dropFirst().first { !$0.hasPrefix("--") } ?? "build/shots")
     static let wantsWindow = args.contains("--window")
     static let wantsActive = args.contains("--active")
+    static let only = args.first { $0.hasPrefix("--only=") }.map { String($0.dropFirst(7)) }
 
     @MainActor static func main() {
         let app = NSApplication.shared
@@ -73,6 +75,18 @@ enum RenderMain {
                   select: NSRange(location: (Samples.code as NSString).range(of: "print").location, length: 0))
         shootMain("window-caret-on-rule", theme: .light, notes: Samples.codeNotes, open: first,
                   select: NSRange(location: (Samples.code as NSString).range(of: "---").location + 1, length: 0))
+        // 透かして手前に出す（後ろの画面ごと撮る）
+        for theme in Theme.Kind.allCases {
+            shootMain("window-overlay-\(theme)", theme: theme, notes: Samples.notes, open: first, region: true) { main, _, _, _ in
+                main.setOverlay(true)
+            }
+        }
+        // 透かしたあと、元に戻す
+        shootMain("window-overlay-off", theme: .light, notes: Samples.notes, open: first) { main, _, _, _ in
+            main.setOverlay(true)
+            pump(0.4)
+            main.setOverlay(false)
+        }
         // 一覧を畳んで、また開いたあと
         shootMain("window-after-collapse", theme: .light, notes: Samples.notes, open: first) { main, _, _, _ in
             main.split.splitViewItems.first?.isCollapsed = true
@@ -141,6 +155,7 @@ enum RenderMain {
                                      size: NSSize = NSSize(width: 1040, height: 720),
                                      collapse: Bool = false, select: NSRange? = nil, region: Bool = false,
                                      prepare: ((MainWindow, EditorController, NoteStore, MeetingSession) -> Void)? = nil) {
+        if let only, !name.contains(only) { return }
         let folder = scratchFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
         for (index, (file, text)) in notes.enumerated() {

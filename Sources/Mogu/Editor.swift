@@ -240,6 +240,13 @@ final class EditorController: NSObject, NSTextViewDelegate, @preconcurrency NSTe
         slashMenu = SlashMenu(textView: textView)
     }
 
+    /// 本文の下地を描くのをやめて、窓の下地（透けている）を見せる。文字はそのまま。
+    func setTranslucent(_ on: Bool) {
+        scrollView.drawsBackground = !on
+        textView.drawsBackground = !on
+        textView.needsDisplay = true
+    }
+
     // MARK: - 開く・新しく作る
 
     func open(_ target: URL) {

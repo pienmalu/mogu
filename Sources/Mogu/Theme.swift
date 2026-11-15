@@ -45,6 +45,17 @@ final class Theme {
         appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
             ? NSColor(white: 1, alpha: 0.07) : NSColor(white: 0, alpha: 0.045)
     }
+    /// 透かして出すときの、窓の下地の濃さ（0 で素通し、1 で透けない）。文字は薄めない。
+    /// 0 に近づけすぎると、クリックが下のアプリへ抜ける。
+    var overlayOpacity: CGFloat = 0.62
+    /// 透かして出すときの、窓の下地。
+    var overlayBackground: NSColor {
+        let opacity = overlayOpacity
+        return NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                ? NSColor(white: 0.11, alpha: opacity) : NSColor(white: 1, alpha: opacity)
+        }
+    }
     var quoteBar: NSColor { .tertiaryLabelColor }
     var checkboxBorder: NSColor { .tertiaryLabelColor }
 
