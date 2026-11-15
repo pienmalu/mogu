@@ -12,6 +12,7 @@ Dock とメニューバーに出るメモ帳（macOS 14+、Apple Silicon、自�
 - llama.cpp の版（`setup.sh` の `LLAMA_TAG`）を上げるときは、`./tools/try-rewrite.sh` で E2B と E4B の両方の推敲を試してから。speech.cpp の版（`SPEECH_VERSION`）は `./tools/try-meeting.sh` で試してから
 - macOS 14.2 以降の API（Mac から出る音の取得）は `#available` で分け、14.0 でもマイクだけで動くようにする
 - アイコンは `Resources/AppIcon.png` から `./tools/render-app-icon.sh` で作る。絵を変えるときは、自作アプリで共通の黒いスライム（`~/workspace/dev/brand/black-slime`）からそろえて描き、勝手に差し替えない
+- `AppController` の `mainWindow`・`meeting`・`server` と、`MeetingSession` の `onUtterance` は、このアプリに機能を足したビルド（`App.swift` を別の入口に替えて、ソースを一緒にコンパイルする）が使えるように開けてある。Mogu 自身は使っていなくても、閉じたり名前を変えたりしない
 - コメントとメッセージは日本語。ユーザーが後から自分で少し弄れる単純さを保つ
 - Claude Code のサンドボックスの中では Metal と `iconutil` が動かず、`.atomic` の書き込みも拒まれる。テスト、推敲、文字起こし、描画、アイコン作りはサンドボックスの外で動かす
 - `main` は上流（inseven/thoughts）のまま。作業は `personal` ブランチ

@@ -32,6 +32,8 @@ final class MeetingSession: ObservableObject {
     /// できあがって、ノートに入れるのを待っている要約。
     var pendingSummary: String?
     private(set) var utterances: [Utterance] = []
+    /// 発言が確定するたびに呼ぶ（録っている間に、発言を1つずつ使いたいとき）。
+    var onUtterance: ((Utterance) -> Void)?
 
     private let files: SpeechFiles
     private let journal: MeetingJournal
@@ -132,6 +134,7 @@ final class MeetingSession: ObservableObject {
     private func add(_ utterance: Utterance) {
         utterances.append(utterance)
         journal.append(utterance)
+        onUtterance?(utterance)
     }
 
     static func askForMicrophone() async -> Bool {

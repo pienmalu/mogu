@@ -7,15 +7,16 @@ import SwiftUI
 final class AppController: NSObject, NSMenuDelegate {
     static var appName: String { Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Mogu" }
 
+    // 窓、議事録、モデルは、このアプリに機能を足したビルドからも使えるように、読むだけは外に開けておく。
     private var store: NoteStore!
     private var editor: EditorController!
-    private var mainWindow: MainWindow!
+    private(set) var mainWindow: MainWindow!
     private var statusItem: NSStatusItem!
     private var hotKey: GlobalHotKey?
     private var meetingHotKey: GlobalHotKey?
-    private var meeting: MeetingController!
+    private(set) var meeting: MeetingController!
     private var quickOpen: QuickOpen!
-    private var server: LLMServer!
+    private(set) var server: LLMServer!
     private var rewriteWindow: NSWindow?
     private var overlayItem: NSMenuItem?
     private var cancellables: Set<AnyCancellable> = []
