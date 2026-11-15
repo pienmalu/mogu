@@ -13,7 +13,7 @@ WHICH="${1:-e4b}"
 
 # 議事録の文字起こし。speech.cpp（コマンド1つ）を vendor/ に置き、リリースの SHA-256 と照らし合わせる。
 # モデルは speech.cpp の既定のフォルダ（~/Library/Caches/speech.cpp/models。~/models/speech.cpp からリンクしてある）に
-# 取ってきて、models/ にリンクを張る。Poko や Kanpe と同じファイルを使う。
+# 取ってきて、models/ にリンクを張る。Poko と同じファイルを使う。
 if [[ "$WHICH" == "meeting" ]]; then
   ZIP="speech-$SPEECH_VERSION-macos-arm64-metal.zip"
   URL="https://github.com/nyosegawa/speech.cpp/releases/download/v$SPEECH_VERSION"
