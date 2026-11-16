@@ -40,7 +40,20 @@ final class MeetingTests: XCTestCase {
         let items = (0..<6).map { Utterance(start: Double($0) * 10, speaker: .me, text: String(repeating: "あ", count: 50)) }
         let paragraphs = MeetingTranscript.paragraphs(items, limit: 160)
         XCTAssertEqual(paragraphs.map(\.start), [0, 40])
-        XCTAssertEqual(paragraphs.map(\.text.count), [200, 100])
+        XCTAssertEqual(paragraphs.map(\.text.count), [203, 101])  // 間に「、」が入る
+    }
+
+    /// 文字起こしは句読点を付けないことが多い。つなぐときに、切れ目が分かるように区切りを入れる。
+    func testUnpunctuatedUtterancesAreJoinedWithSeparators() {
+        let items = ["ありがとうございます。", "職歴にも触れていただいたかと思うんですけれども", "詳しくお伺いしていきたいとおもいます",
+                     "ご説明いただいてもよろしいでしょうか"].enumerated().map { Utterance(start: Double($0.offset), speaker: .other, text: $0.element) }
+        XCTAssertEqual(MeetingTranscript.paragraphs(items).map(\.text),
+                       ["ありがとうございます。職歴にも触れていただいたかと思うんですけれども、詳しくお伺いしていきたいとおもいます。ご説明いただいてもよろしいでしょうか"])
+        XCTAssertEqual(MeetingTranscript.separator(after: "では次へ。"), "")
+        XCTAssertEqual(MeetingTranscript.separator(after: "なぜですか？"), "")
+        XCTAssertEqual(MeetingTranscript.separator(after: "研究とか"), "、")
+        XCTAssertEqual(MeetingTranscript.separator(after: "そうですか"), "。")
+        XCTAssertEqual(MeetingTranscript.separator(after: ""), "")
     }
 
     func testChunksSplitAtLineBreaks() {
@@ -76,6 +89,16 @@ final class MeetingTests: XCTestCase {
     func testCleanDropsFencesAndPreamble() {
         let output = "はい、まとめます。\n```markdown\n## 要約\n- 決めた\n\n## TODO\n- [ ] やる\n```"
         XCTAssertEqual(MeetingPrompt.clean(output), "## 要約\n- 決めた\n\n## TODO\n- [ ] やる")
+    }
+
+    /// 決定事項や TODO が「なし」だけなら、見出しごと落とす。要約は残す。
+    func testCleanDropsSectionsThatSayNothing() {
+        let output = "## 要約\n- 職歴を聞いた\n\n## 決定事項\n- なし\n\n## TODO\n- [ ] なし。\n"
+        XCTAssertEqual(MeetingPrompt.clean(output), "## 要約\n- 職歴を聞いた")
+        let mixed = "## 要約\n- 話した\n\n## 決定事項\n- なし\n\n## TODO\n- [ ] 田中さんが金曜までに見積もりを出す\n- なし"
+        XCTAssertEqual(MeetingPrompt.clean(mixed), "## 要約\n- 話した\n\n## TODO\n- [ ] 田中さんが金曜までに見積もりを出す\n- なし")
+        XCTAssertEqual(MeetingPrompt.clean("## 要約\n- なし"), "## 要約\n- なし")
+        XCTAssertEqual(MeetingPrompt.clean("見出しのない答え"), "見出しのない答え")
     }
 
     func testMemoIsNotesWithoutTitleAndTranscript() {

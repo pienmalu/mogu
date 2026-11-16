@@ -16,12 +16,12 @@ enum MeetingPrompt {
     """
 
     static let summarySystem = """
-    あなたは会議の書記です。ユーザーが渡すのは、会議の音声を自動で文字にしたもの（またはその要点）と、参加者が会議中に書いたメモです。
+    あなたは会議の書記です。ユーザーが渡すのは、会議や面談の音声を自動で文字にしたもの（またはその要点）と、参加者が会議中に書いたメモです。
     文字起こしには聞き間違いによる誤字が混ざっています。文脈から意味を汲み取り、メモの書き方を正しいものとして扱ってください。
     次の形の Markdown だけを返してください。前置き、説明、コードブロックでの囲みは書かないでください。
 
     ## 要約
-    - （話し合ったことを、3〜6個の箇条書きで）
+    - （話したことを、箇条書きで。数は話した量に合わせる。数分の短い会話なら1〜2個、長い会議でも6個まで）
 
     ## 決定事項
     - （決まったこと。なければ「- なし」）
@@ -46,11 +46,33 @@ enum MeetingPrompt {
     }
 
     /// 返ってきた文を、ノートに入れられる形にする。``` の囲みと、最初の見出しより前の前置きを落とす。
+    /// 中身が「なし」だけの節（決定事項や TODO のない、面談や雑談）は、見出しごと落とす。
     static func clean(_ output: String) -> String {
         var lines = output.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: "\n")
         lines.removeAll { $0.trimmingCharacters(in: .whitespaces).hasPrefix("```") }
         if let first = lines.firstIndex(where: { $0.hasPrefix("## ") }) { lines.removeFirst(first) }
-        return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        // 見出しごとの節に分ける（最初の見出しより前に残った行は、そのまま1つの節にする）
+        var sections: [[String]] = []
+        for line in lines {
+            if line.hasPrefix("## ") || sections.isEmpty { sections.append([]) }
+            sections[sections.count - 1].append(line)
+        }
+        let kept = sections.enumerated().filter { index, section in index == 0 || !isEmpty(section: section) }
+        return kept.map { $0.element.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines) }
+            .joined(separator: "\n\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 見出しの下が、空か「なし」だけか（「- なし」「- [ ] 特になし。」など）。
+    static func isEmpty(section: [String]) -> Bool {
+        section.dropFirst().allSatisfy { line in
+            var text = line.trimmingCharacters(in: .whitespaces)
+            for mark in ["- [ ]", "- [x]", "-", "*", "・"] where text.hasPrefix(mark) {
+                text = String(text.dropFirst(mark.count))
+                break
+            }
+            text = text.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "。.（）()")))
+            return ["", "なし", "特になし", "とくになし"].contains(text)
+        }
     }
 
     /// 会議中に書いたメモ（本文から、見出しの行と文字起こしを除いた部分）。

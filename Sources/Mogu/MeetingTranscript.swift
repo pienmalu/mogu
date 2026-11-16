@@ -32,12 +32,23 @@ enum MeetingTranscript {
             let text = item.text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { continue }
             if let last = result.last, last.speaker == item.speaker, last.text.count < limit {
-                result[result.count - 1].text += text
+                result[result.count - 1].text += separator(after: last.text) + text
             } else {
                 result.append(Utterance(start: item.start, speaker: item.speaker, text: text))
             }
         }
         return result
+    }
+
+    /// 発言をつなぐときに、間に入れる区切り。句読点で終わっていれば、何も入れない。
+    /// 文字起こしは句読点を付けないことが多く、そのままつなぐと、発言の切れ目が分からなくなる。
+    /// 文の終わりらしい言葉（です、ます、か など）で終わっていれば「。」、そうでなければ（息継ぎで切れただけとみて）「、」。
+    static func separator(after text: String) -> String {
+        guard let last = text.last else { return "" }
+        if "。、．，.,！？!?…」』）)".contains(last) { return "" }
+        if ["とか", "なんか", "どうか"].contains(where: text.hasSuffix) { return "、" }
+        let ends = ["です", "ます", "でした", "ました", "ません", "でしょう", "ましょう", "ください", "か"]
+        return ends.contains(where: text.hasSuffix) ? "。" : "、"
     }
 
     /// 相手の声（Mac から出た音）が一度でも聞こえた会議だけ、誰の発言かを書く。
