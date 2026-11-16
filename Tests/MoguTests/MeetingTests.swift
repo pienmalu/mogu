@@ -52,6 +52,8 @@ final class MeetingTests: XCTestCase {
         XCTAssertEqual(MeetingTranscript.separator(after: "では次へ。"), "")
         XCTAssertEqual(MeetingTranscript.separator(after: "なぜですか？"), "")
         XCTAssertEqual(MeetingTranscript.separator(after: "研究とか"), "、")
+        XCTAssertEqual(MeetingTranscript.separator(after: "ほかに何か"), "、")
+        XCTAssertEqual(MeetingTranscript.separator(after: "案をいくつか"), "、")
         XCTAssertEqual(MeetingTranscript.separator(after: "そうですか"), "。")
         XCTAssertEqual(MeetingTranscript.separator(after: ""), "")
     }
