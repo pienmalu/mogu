@@ -9,7 +9,7 @@ final class AppController: NSObject, NSMenuDelegate {
 
     // 窓、議事録、モデルは、このアプリに機能を足したビルドからも使えるように、読むだけは外に開けておく。
     private var store: NoteStore!
-    private var editor: EditorController!
+    private(set) var editor: EditorController!
     private(set) var mainWindow: MainWindow!
     private var statusItem: NSStatusItem!
     private var hotKey: GlobalHotKey?
@@ -123,7 +123,8 @@ final class AppController: NSObject, NSMenuDelegate {
         quickOpen.toggle(notes: store.notes, over: mainWindow.window)
     }
 
-    private func open(_ url: URL) {
+    /// ノートを開いて、窓を出す。
+    func open(_ url: URL) {
         store.selection = url
         mainWindow.show()
     }
