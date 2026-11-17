@@ -14,6 +14,21 @@ final class MeetingTests: XCTestCase {
         XCTAssertNil(Transcriber.parse("reading 16-bit PCM"))
     }
 
+    /// 録っている間の様子を、1行にする。音が届いていない、speech.cpp が読んでいない、文字が返らない、を見分けられる。
+    func testDescribesAudioHealth() {
+        let fine = MeetingAudio.Health(seconds: 30, peak: 0.62, transcriber: Transcriber.Stats(pendingBytes: 0, droppedBytes: 0, events: 12))
+        let me = MeetingAudio.Health(seconds: 30, peak: 0.41, transcriber: Transcriber.Stats(events: 3))
+        XCTAssertEqual(MeetingAudio.describe(other: fine, me: me),
+                       "相手: 音 30.0 秒・最大 0.62・待ち 0.0 秒・返り 12 行 ／ 自分: 音 30.0 秒・最大 0.41・待ち 0.0 秒・返り 3 行")
+        // speech.cpp が音を読んでいない（待ちが増える）、終わっている（捨てた）
+        let stuck = MeetingAudio.Health(seconds: 30, peak: 0.5, transcriber: Transcriber.Stats(pendingBytes: 32000 * 45, droppedBytes: 32000 * 3, events: 0))
+        XCTAssertTrue(MeetingAudio.describe(other: stuck, me: me).hasPrefix("相手: 音 30.0 秒・最大 0.50・待ち 45.0 秒・捨てた 3.0 秒・返り 0 行 ／"))
+        // まだ相手の声が聞こえていない、Mac の音を取れていない
+        let quiet = MeetingAudio.Health(seconds: 30, peak: 0.05, transcriber: nil)
+        XCTAssertTrue(MeetingAudio.describe(other: quiet, me: me).hasPrefix("相手: 音 30.0 秒・最大 0.05・文字起こしは始めていない ／"))
+        XCTAssertTrue(MeetingAudio.describe(other: nil, me: me).hasPrefix("相手: Mac の音を取っていない ／ 自分: "))
+    }
+
     // MARK: - 文字起こしの形
 
     func testClock() {

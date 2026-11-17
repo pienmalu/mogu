@@ -44,6 +44,26 @@ final class Transcriber: @unchecked Sendable {
     /// 結果を最後まで読み終えたら合図する。
     private let drained = DispatchSemaphore(value: 0)
 
+    /// 動いている様子（うまく文字にならないときに、どこで止まっているかを見分けるため）。
+    struct Stats: Equatable {
+        /// 渡されたが、まだ speech.cpp に書けていない音。増え続けるなら、speech.cpp が音を読んでいない。
+        var pendingBytes = 0
+        /// speech.cpp が終わっていて、捨てた音。
+        var droppedBytes = 0
+        /// speech.cpp から返ってきた行（話し始め、途中の文字、確定した文）の数。
+        var events = 0
+    }
+    private let statsLock = NSLock()
+    private var stats = Stats()
+
+    /// 前に呼んでからの様子。待っている音だけは、いまの量。
+    func takeStats() -> Stats {
+        statsLock.withLock {
+            defer { stats.droppedBytes = 0; stats.events = 0 }
+            return stats
+        }
+    }
+
     init(files: SpeechFiles) {
         self.files = files
     }
@@ -74,7 +94,9 @@ final class Transcriber: @unchecked Sendable {
         }
         // 結果とログは読み続ける（読まずにいるとパイプが詰まり、speech が止まるため）。
         Self.readLines(output.fileHandleForReading, onLine: { [weak self] line in
-            if let event = Self.parse(line) { self?.onEvent?(event) }
+            guard let self, let event = Self.parse(line) else { return }
+            self.statsLock.withLock { self.stats.events += 1 }
+            self.onEvent?(event)
         }, onEnd: { [weak self] in self?.drained.signal() })
         Self.readLines(errors.fileHandleForReading, onLine: { line in
             if line.hasPrefix("speech:") { NSLog("%@", line) }
@@ -95,8 +117,13 @@ final class Transcriber: @unchecked Sendable {
     /// 16 kHz・16 bit・モノラルの音を渡す。どのスレッドから呼んでもよい。
     /// speech.cpp の準備（初回は十数秒かかることがある）が済む前の音も、ここで順に待たせておくので落ちない。
     func append(_ pcm: Data) {
+        statsLock.withLock { stats.pendingBytes += pcm.count }
         writer.async { [self] in
-            guard let input else { return }
+            defer { statsLock.withLock { stats.pendingBytes -= pcm.count } }
+            guard let input else {
+                statsLock.withLock { stats.droppedBytes += pcm.count }
+                return
+            }
             do {
                 try input.write(contentsOf: pcm)
             } catch {

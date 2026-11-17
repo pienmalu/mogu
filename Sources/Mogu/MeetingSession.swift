@@ -34,11 +34,14 @@ final class MeetingSession: ObservableObject {
     private(set) var utterances: [Utterance] = []
     /// 発言が確定するたびに呼ぶ（録っている間に、発言を1つずつ使いたいとき）。
     var onUtterance: ((Utterance) -> Void)?
+    /// 録っている間の様子を、30 秒ごとに知らせる（音が届いているか、文字起こしが返っているか）。うまくいかなかったことも、ここで知らせる。
+    var onDiagnostic: ((String) -> Void)?
 
     private let files: SpeechFiles
     private let journal: MeetingJournal
     private var audio: MeetingAudio?
     private var levelTimer: Timer?
+    private var healthTimer: Timer?
     private var noticeTimer: Timer?
 
     init(files: SpeechFiles, journal: MeetingJournal = .standard) {
@@ -66,7 +69,12 @@ final class MeetingSession: ObservableObject {
         }
         audio.onFailure = { [weak self] message in
             NSLog("議事録: %@", message)
-            DispatchQueue.main.async { MainActor.assumeIsolated { self?.caption = message } }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self?.caption = message
+                    self?.onDiagnostic?(message)
+                }
+            }
         }
         try audio.start()
         self.audio = audio
@@ -84,14 +92,25 @@ final class MeetingSession: ObservableObject {
                 self.levels = Array(self.levels.dropFirst()) + [audio.takeLevel()]
             }
         }
+        healthTimer = Timer.scheduledTimer(withTimeInterval: Self.healthInterval, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, let audio = self.audio else { return }
+                self.onDiagnostic?(audio.takeHealth())
+            }
+        }
     }
+
+    /// 様子を知らせる間隔（秒）。
+    static let healthInterval: TimeInterval = 30
 
     /// 録るのをやめ、残りの発言が確定するのを待って、全部の発言を返す。
     func stop() async -> [Utterance] {
         guard phase == .recording, let audio else { return utterances }
         phase = .finishing
         levelTimer?.invalidate()
+        healthTimer?.invalidate()
         levels = Array(repeating: 0, count: Self.levelCount)
+        onDiagnostic?(audio.takeHealth())  // 止める直前までの様子
         await audio.finish()
         // 最後の発言は、読み取りのスレッドからメインへ渡される途中かもしれない。1拍おいて受け取る。
         try? await Task.sleep(nanoseconds: 50_000_000)
@@ -175,6 +194,9 @@ final class MeetingAudio: @unchecked Sendable {
     private var otherActiveUntil = Date.distantPast
     private var recent = Data()
     private var peak: Float = 0
+    /// 前に様子を取ってからの、届いた音の量と、いちばん大きかった音（マイクと、Mac から出る音）。
+    private var micHeard = (bytes: 0, peak: Float(0))
+    private var systemHeard = (bytes: 0, peak: Float(0))
     /// 発言ごとの、話し始めの時刻と、途中までの文字。
     private var starts: [String: TimeInterval] = [:]
     private var partial: [String: String] = [:]
@@ -225,8 +247,52 @@ final class MeetingAudio: @unchecked Sendable {
         }
     }
 
+    /// 片方の音の、前に取ってからの様子。
+    struct Health: Equatable {
+        /// 届いた音の長さ（秒）と、いちばん大きかった音（0〜1）。
+        var seconds: Double
+        var peak: Float
+        /// 文字起こしの様子。まだ始めていなければ nil。
+        var transcriber: Transcriber.Stats?
+    }
+
+    /// 前に呼んでからの様子を、1行にする。
+    func takeHealth() -> String {
+        let (mine, others, other, hasSystem): ((bytes: Int, peak: Float), (bytes: Int, peak: Float), Transcriber?, Bool) = lock.withLock {
+            defer {
+                micHeard = (0, 0)
+                systemHeard = (0, 0)
+            }
+            return (micHeard, systemHeard, self.other, system != nil)
+        }
+        let seconds = { (bytes: Int) in Double(bytes / 2) / Double(Resampler.sampleRate) }
+        return Self.describe(
+            other: hasSystem ? Health(seconds: seconds(others.bytes), peak: others.peak, transcriber: other?.takeStats()) : nil,
+            me: Health(seconds: seconds(mine.bytes), peak: mine.peak, transcriber: me.takeStats()))
+    }
+
+    /// 例：「相手: 音 30.0 秒・最大 0.62・待ち 0.0 秒・返り 12 行 ／ 自分: 音 30.0 秒・最大 0.41・待ち 0.0 秒・返り 3 行」
+    /// - 音が 0 秒なら、音が届いていない。最大が 0 に近ければ、届いているが無音。
+    /// - 待ちが増え続けるなら、speech.cpp が音を読んでいない。返りが 0 行なら、文字が返っていない。
+    static func describe(other: Health?, me: Health) -> String {
+        func line(_ health: Health) -> String {
+            var parts = [String(format: "音 %.1f 秒", health.seconds), String(format: "最大 %.2f", health.peak)]
+            if let stats = health.transcriber {
+                let seconds = { (bytes: Int) in Double(bytes / 2) / Double(Resampler.sampleRate) }
+                parts.append(String(format: "待ち %.1f 秒", seconds(stats.pendingBytes)))
+                if stats.droppedBytes > 0 { parts.append(String(format: "捨てた %.1f 秒", seconds(stats.droppedBytes))) }
+                parts.append("返り \(stats.events) 行")
+            } else {
+                parts.append("文字起こしは始めていない")
+            }
+            return parts.joined(separator: "・")
+        }
+        return "相手: " + (other.map(line) ?? "Mac の音を取っていない") + " ／ 自分: " + line(me)
+    }
+
     private func fromMic(_ pcm: Data, _ level: Float) {
         let muted = lock.withLock {
+            micHeard = (micHeard.bytes + pcm.count, max(micHeard.peak, level))
             let muted = Date() < otherActiveUntil
             if !muted { peak = max(peak, level) }
             return muted
@@ -238,6 +304,7 @@ final class MeetingAudio: @unchecked Sendable {
         let audible = level > Self.otherThreshold
         let (transcriber, backlog): (Transcriber?, Data?) = lock.withLock {
             peak = max(peak, level)
+            systemHeard = (systemHeard.bytes + pcm.count, max(systemHeard.peak, level))
             if audible { otherActiveUntil = Date().addingTimeInterval(Self.otherHold) }
             if let other { return (other, nil) }
             // まだ始めていない間は、直近の音だけ取っておく
