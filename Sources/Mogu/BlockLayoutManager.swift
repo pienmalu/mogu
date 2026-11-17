@@ -7,6 +7,8 @@ extension NSAttributedString.Key {
     static let moguInlineCode = NSAttributedString.Key("MoguInlineCode")
     /// ⌘クリックで開くリンク先。
     static let moguLink = NSAttributedString.Key("MoguLink")
+    /// 同じノートの見出しへ飛ぶリンク（`[目次の字](#見出し)`）の行き先。値は「#」を除いた文字列。
+    static let moguAnchor = NSAttributedString.Key("MoguAnchor")
     /// カーソルが離れている間は隠す記号（値は MarkerScope）。
     static let moguScope = NSAttributedString.Key("MoguScope")
     /// 箇条書きの記号。• として見せる。

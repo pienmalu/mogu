@@ -1,5 +1,34 @@
 import AppKit
 
+/// 同じノートの中の見出しを、リンクの行き先（`#` のあとの字）から探す。
+enum NoteAnchor {
+    /// anchor に当たる見出しの行の先頭（UTF-16 の位置）。見出しの字が anchor と同じか、anchor のあとに空白が続く
+    /// （`#A20` が「### A20 AI配信者」に当たる）最初の見出し。コードの囲みの中は見ない。なければ nil。
+    static func headingLocation(in text: String, anchor: String) -> Int? {
+        let wanted = anchor.trimmingCharacters(in: .whitespaces)
+        guard !wanted.isEmpty else { return nil }
+        let ns = text as NSString
+        var location = 0, inFence = false, prefixed: Int?
+        while location < ns.length {
+            let range = ns.lineRange(for: NSRange(location: location, length: 0))
+            let line = ns.substring(with: range).trimmingCharacters(in: .whitespacesAndNewlines)
+            if line.hasPrefix("```") {
+                inFence.toggle()
+            } else if !inFence, line.hasPrefix("#") {
+                let marks = line.prefix { $0 == "#" }
+                let rest = line.dropFirst(marks.count)
+                if marks.count <= 6, rest.hasPrefix(" ") {
+                    let title = rest.trimmingCharacters(in: .whitespaces)
+                    if title == wanted { return range.location }
+                    if prefixed == nil, title.hasPrefix(wanted + " ") { prefixed = range.location }
+                }
+            }
+            location = NSMaxRange(range)
+        }
+        return prefixed
+    }
+}
+
 /// 本文を書く欄。文字はプレーンテキストのまま持ち、見た目だけ MarkdownStyler で付ける。
 final class MarkdownTextView: NSTextView {
     /// 本文の上の余白（窓の上端の信号ボタンと重ならないように）。
@@ -14,7 +43,14 @@ final class MarkdownTextView: NSTextView {
     }
 
     /// ⌘クリックでリンクを開く。チェックボックスは押すと切り替わる。ふつうのクリックはカーソルを置くだけ。
+    /// 同じノートの見出しへのリンク（`[字](#見出し)`）だけは、ふつうのクリックでも飛ぶ（目次として使うため）。
     override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 1, event.modifierFlags.intersection([.shift, .option, .control]).isEmpty,
+           let anchor = attribute(.moguAnchor, at: event) as? String,
+           let location = NoteAnchor.headingLocation(in: string, anchor: anchor) {
+            jump(to: location)
+            return
+        }
         if event.modifierFlags.contains(.command), let url = link(at: event) {
             NSWorkspace.shared.open(url)
             return
@@ -63,14 +99,31 @@ final class MarkdownTextView: NSTextView {
         NSPoint(x: super.textContainerOrigin.x, y: topInset)
     }
 
-    private func link(at event: NSEvent) -> URL? {
+    private func link(at event: NSEvent) -> URL? { attribute(.moguLink, at: event) as? URL }
+
+    /// クリックした字に付いている属性。
+    private func attribute(_ key: NSAttributedString.Key, at event: NSEvent) -> Any? {
         guard let storage = textStorage, storage.length > 0 else { return nil }
         let point = convert(event.locationInWindow, from: nil)
         let index = characterIndexForInsertion(at: point)
         for candidate in [index, index - 1] where candidate >= 0 && candidate < storage.length {
-            if let url = storage.attribute(.moguLink, at: candidate, effectiveRange: nil) as? URL { return url }
+            if let value = storage.attribute(key, at: candidate, effectiveRange: nil) { return value }
         }
         return nil
+    }
+
+    /// location のある行（見出し）にカーソルを置き、その行が窓のいちばん上に来るように送る。
+    func jump(to location: Int) {
+        let line = (string as NSString).lineRange(for: NSRange(location: location, length: 0))
+        setSelectedRange(NSRange(location: line.location, length: 0))
+        guard let layout = layoutManager, let container = textContainer, let clip = enclosingScrollView?.contentView else {
+            scrollRangeToVisible(line)
+            return
+        }
+        layout.ensureLayout(forCharacterRange: NSRange(location: 0, length: NSMaxRange(line)))
+        let rect = layout.boundingRect(forGlyphRange: layout.glyphRange(forCharacterRange: line, actualCharacterRange: nil), in: container)
+        let bottom = max(0, frame.height - clip.bounds.height)
+        scroll(NSPoint(x: 0, y: min(max(0, rect.minY), bottom)))
     }
 
     /// 箇条書きの行で改行したら、次の行にも同じ記号を入れる。中身のない行なら記号を消して抜ける。
