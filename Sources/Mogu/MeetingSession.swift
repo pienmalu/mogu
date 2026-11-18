@@ -36,6 +36,8 @@ final class MeetingSession: ObservableObject {
     var onUtterance: ((Utterance) -> Void)?
     /// 録っている間の様子を、30 秒ごとに知らせる（音が届いているか、文字起こしが返っているか）。うまくいかなかったことも、ここで知らせる。
     var onDiagnostic: ((String) -> Void)?
+    /// 誰かが話している間、途中の文字が届くたびに呼ぶ（誰の声かと、その発言のここまでの文字）。字幕と違い、確定したときには呼ばない。
+    var onSpeech: ((Speaker, String) -> Void)?
 
     private let files: SpeechFiles
     private let journal: MeetingJournal
@@ -66,6 +68,9 @@ final class MeetingSession: ObservableObject {
         }
         audio.onCaption = { [weak self] text in
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.caption = text } }
+        }
+        audio.onSpeech = { [weak self] speaker, text in
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.onSpeech?(speaker, text) } }
         }
         audio.onFailure = { [weak self] message in
             NSLog("議事録: %@", message)
@@ -174,6 +179,7 @@ final class MeetingSession: ObservableObject {
 final class MeetingAudio: @unchecked Sendable {
     var onUtterance: ((Utterance) -> Void)?
     var onCaption: ((String) -> Void)?
+    var onSpeech: ((Speaker, String) -> Void)?
     var onFailure: ((String) -> Void)?
 
     /// Mac から出る音が、この大きさ（0〜1）を超えたら「相手が話している」とみなす。
@@ -339,6 +345,7 @@ final class MeetingAudio: @unchecked Sendable {
                 return partial[id] ?? ""
             }
             onCaption?(soFar)
+            onSpeech?(speaker, soFar)
         case .completed(let id, let text):
             let start = lock.withLock {
                 partial[id] = nil
