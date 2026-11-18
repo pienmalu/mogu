@@ -161,12 +161,12 @@ E2B を使うときは `./scripts/setup.sh e2b` で取ってくる。
 ./tools/render.sh build/shots --window  # 見た目を PNG に描く（--window は窓全体。画面に一瞬出る）
 ./tools/try-rewrite.sh e4b < 下書き.txt  # アプリと同じ経路で推敲を試す
 ./tools/try-meeting.sh 会議.wav          # 録音を、アプリと同じ経路（文字起こし → 要約）に流す
-./tools/render-app-icon.sh              # 正方形の絵 Resources/AppIcon.png から、アイコン Resources/AppIcon.icns を作り直す
+./tools/render-app-icon.sh              # 元の絵 Resources/AppIcon.svg から、アイコン Resources/AppIcon.icns を作り直す（Chrome を使う）
 ```
 
 - アプリ名と bundle ID は `scripts/build-app.sh` の先頭 2 行で変えられる。
   ホットキーは `Sources/Mogu/GlobalHotKey.swift` の先頭にある
 - アプリはビルドしたフォルダ（`Info.plist` の `MoguHome`）の `vendor/` と `models/` を使う。
   `~/Applications` に入れたアプリも同じで、フォルダを動かしたらビルドし直す
-- アイコンの絵は自作アプリで共通の黒いスライム（`~/workspace/dev/brand/black-slime`）から描いた。
-  描き方とほかの案はそちらの README にある
+- アイコンは、[Poko](https://github.com/pienmalu/poko) と同じ飴のもち。
+  Mogu は杏色で座り、目を細めてもぐもぐ噛んでいる。16・32pt には、顔を太く描いた `AppIcon-small.svg` を使う

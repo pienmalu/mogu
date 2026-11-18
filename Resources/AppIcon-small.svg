@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Mogu のアイコン。Poko と同じ飴のもち（墨色の地、左上からの光、同じ輪郭）で、姿勢・顔・色だけが違う。
+     Mogu は杏色。少し横に広がって座り、目を細め、頬をふくらませてもぐもぐ噛む。
+     これは 16・32px 用。体を大きく、顔を太く描いてある。
+     書き出し: ./tools/render-app-icon.sh -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#262838"/><stop offset="0.6" stop-color="#11121A"/><stop offset="1" stop-color="#07080C"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="0.5" cy="0.5" r="0.55">
+      <stop offset="0" stop-color="#FF7038" stop-opacity="0.26"/><stop offset="1" stop-color="#FF7038" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="window" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.92"/><stop offset="1" stop-color="#fff" stop-opacity="0.15"/>
+    </linearGradient>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.9 0"/>
+      <feComposite operator="in" in2="SourceGraphic"/>
+    </filter>
+    <filter id="blur-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="56"/></filter>
+    <filter id="blur-l" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="blur-m" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14"/></filter>
+    <filter id="blur-s" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="blur-xs" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
+    <filter id="blur-cheek" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="18"/></filter>
+    
+    <clipPath id="clip-body"><path d="M142.0,705.36 C142.0,400.08000000000004 290.0,222 512,222 C734.0,222 882.0,400.08000000000004 882.0,705.36 C882.0,826.2 808.0,858 704.4,858 Q512,880.26 319.6,858 C216.0,858 142.0,826.2 142.0,705.36 Z"/></clipPath>
+    <linearGradient id="body-body" gradientUnits="userSpaceOnUse" x1="142.0" y1="222" x2="882.0" y2="858">
+      <stop offset="0" stop-color="#FFE9C4"/><stop offset="0.36" stop-color="#FFA154"/>
+      <stop offset="0.78" stop-color="#D9472A"/><stop offset="1" stop-color="#4E130C"/>
+    </linearGradient>
+    <radialGradient id="sheen-body" gradientUnits="userSpaceOnUse" cx="334.4" cy="323.76" r="458.8">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.5"/><stop offset="0.45" stop-color="#fff" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="core-body" gradientUnits="userSpaceOnUse" cx="734.0" cy="845.28" r="407.00000000000006">
+      <stop offset="0" stop-color="#4E130C" stop-opacity="0.5"/><stop offset="1" stop-color="#4E130C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="sub-body" gradientUnits="userSpaceOnUse" cx="512.0" cy="908.88" r="370.0" gradientTransform="translate(0 858) scale(1 0.55) translate(0 -858)">
+      <stop offset="0" stop-color="#FFE9C4" stop-opacity="0.75"/><stop offset="1" stop-color="#FFE9C4" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim-body" gradientUnits="userSpaceOnUse" x1="142.0" y1="222" x2="549.0" y2="571.8">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="caustic-body" gradientUnits="userSpaceOnUse" x1="0" y1="540.0" x2="0" y2="858">
+      <stop offset="0" stop-color="#FFE9C4" stop-opacity="0"/><stop offset="1" stop-color="#FFE9C4" stop-opacity="1"/>
+    </linearGradient>
+    <linearGradient id="window-body" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.9"/><stop offset="1" stop-color="#fff" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#aura)"/>
+  <ellipse cx="512.0" cy="876.0" rx="458.8" ry="88.8" fill="#FF7038" opacity="0.30" filter="url(#blur-glow)"/><ellipse cx="512.0" cy="864.0" rx="310.8" ry="33.3" fill="#000" opacity="0.75" filter="url(#blur-m)"/><path d="M142.0,705.36 C142.0,400.08000000000004 290.0,222 512,222 C734.0,222 882.0,400.08000000000004 882.0,705.36 C882.0,826.2 808.0,858 704.4,858 Q512,880.26 319.6,858 C216.0,858 142.0,826.2 142.0,705.36 Z" fill="#FF7038" opacity="0.32" filter="url(#blur-glow)"/><path d="M142.0,705.36 C142.0,400.08000000000004 290.0,222 512,222 C734.0,222 882.0,400.08000000000004 882.0,705.36 C882.0,826.2 808.0,858 704.4,858 Q512,880.26 319.6,858 C216.0,858 142.0,826.2 142.0,705.36 Z" fill="url(#body-body)"/><g clip-path="url(#clip-body)"><rect x="82.0" y="162" width="860.0" height="756" fill="url(#core-body)"/><rect x="82.0" y="162" width="860.0" height="756" fill="url(#sub-body)"/><path d="M142.0,705.36 C142.0,400.08000000000004 290.0,222 512,222 C734.0,222 882.0,400.08000000000004 882.0,705.36 C882.0,826.2 808.0,858 704.4,858 Q512,880.26 319.6,858 C216.0,858 142.0,826.2 142.0,705.36 Z" fill="none" stroke="#4E130C" stroke-width="44" opacity="0.45" filter="url(#blur-m)"/><rect x="82.0" y="162" width="860.0" height="756" fill="url(#sheen-body)"/><path d="M142.0,705.36 C142.0,400.08000000000004 290.0,222 512,222 C734.0,222 882.0,400.08000000000004 882.0,705.36 C882.0,826.2 808.0,858 704.4,858 Q512,880.26 319.6,858 C216.0,858 142.0,826.2 142.0,705.36 Z" fill="none" stroke="url(#caustic-body)" stroke-width="18" transform="translate(0 -20)" filter="url(#blur-s)"/><path d="M142.0,705.36 C142.0,400.08000000000004 290.0,222 512,222 C734.0,222 882.0,400.08000000000004 882.0,705.36 C882.0,826.2 808.0,858 704.4,858 Q512,880.26 319.6,858 C216.0,858 142.0,826.2 142.0,705.36 Z" fill="none" stroke="url(#rim-body)" stroke-width="5" transform="translate(3 4)"/></g><ellipse cx="312.2" cy="660.84" rx="58" ry="34" fill="#FF6F5E" opacity="0.55" filter="url(#blur-cheek)"/><ellipse cx="711.8" cy="660.84" rx="58" ry="34" fill="#FF6F5E" opacity="0.32" filter="url(#blur-cheek)"/><path d="M316.70000000000005,586.1400000000001 Q378.8,503.34000000000003 440.9,586.1400000000001" fill="none" stroke="#0A0C14" stroke-width="34.775999999999996" stroke-linecap="round"/><path d="M583.1,586.1400000000001 Q645.2,503.34000000000003 707.3000000000001,586.1400000000001" fill="none" stroke="#0A0C14" stroke-width="34.775999999999996" stroke-linecap="round"/><path d="M411.2,656.4000000000001 Q461.6,714.0 512,667.2 Q562.4,714.0 612.8,656.4000000000001" fill="none" stroke="#0A0C14" stroke-width="32.4" stroke-linecap="round" stroke-linejoin="round"/><g transform="rotate(-32 327.0 349.2)"><rect x="247.0" y="325.2" width="160" height="48" rx="24.0" fill="url(#window)" filter="url(#blur-xs)"/></g>
+  <rect width="1024" height="1024" fill="#fff" opacity="0.045" filter="url(#grain)"/>
+</svg>

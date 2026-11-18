@@ -1,11 +1,14 @@
 // アプリのアイコン（Dock、Finder、許可のダイアログなどに出る）を描く。
 // 正方形の絵 Resources/AppIcon.png を、macOS のアイコンの角丸の形に切り抜き、影を付ける。
+// 64 画素以下（16pt と 32pt）には、顔を太く描いた AppIcon-small.png を使う。
 // 使い方: ./tools/render-app-icon.sh
 import AppKit
 
-let source = NSImage(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))!
+let large = NSImage(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))!
+let small = NSImage(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2]))!
 
 func render(pixels: Int) -> NSBitmapImageRep {
+    let source = pixels <= 64 ? small : large
     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixels, pixelsHigh: pixels, bitsPerSample: 8,
                                samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
     rep.size = NSSize(width: pixels, height: pixels)  // 72 dpi のまま（iconutil は解像度も見る）
@@ -40,7 +43,7 @@ func render(pixels: Int) -> NSBitmapImageRep {
     return rep
 }
 
-let set = URL(fileURLWithPath: CommandLine.arguments[2])
+let set = URL(fileURLWithPath: CommandLine.arguments[3])
 try? FileManager.default.createDirectory(at: set, withIntermediateDirectories: true)
 for size in [16, 32, 128, 256, 512] {
     for scale in [1, 2] {
