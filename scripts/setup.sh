@@ -12,12 +12,14 @@ SPEECH_VERSION="0.10.1"   # 上げるときは ./tools/try-meeting.sh で文字�
 WHICH="${1:-e4b}"
 
 # 議事録の文字起こし。speech.cpp（コマンド1つ）を vendor/ に置き、リリースの SHA-256 と照らし合わせる。
-# モデルは speech.cpp の既定のフォルダ（~/Library/Caches/speech.cpp/models。~/models/speech.cpp からリンクしてある）に
-# 取ってきて、models/ にリンクを張る。Poko と同じファイルを使う。
+# モデルはほかのアプリとも共有する ~/models/speech.cpp に取ってきて、models/ にリンクを張る。Poko と同じファイルを使う。
+# speech.cpp の既定のフォルダ（~/Library/Caches）は macOS の掃除で消されることがあるので使わない。
+# 置き場所は SPEECH_MODEL_DIR で変えられる。
 if [[ "$WHICH" == "meeting" ]]; then
+  export SPEECH_MODEL_DIR="${SPEECH_MODEL_DIR:-$HOME/models/speech.cpp}"
   ZIP="speech-$SPEECH_VERSION-macos-arm64-metal.zip"
   URL="https://github.com/nyosegawa/speech.cpp/releases/download/v$SPEECH_VERSION"
-  mkdir -p "$ROOT/vendor" "$ROOT/models"
+  mkdir -p "$ROOT/vendor" "$ROOT/models" "$SPEECH_MODEL_DIR"
   if [[ "$("$ROOT/vendor/speech" --version 2>/dev/null)" != "speech.cpp $SPEECH_VERSION"* ]]; then
     echo "speech.cpp $SPEECH_VERSION を取ってきます"
     curl -fsSL -o "$ROOT/vendor/$ZIP" "$URL/$ZIP"
