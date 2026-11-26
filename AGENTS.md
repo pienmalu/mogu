@@ -12,7 +12,7 @@ Dock とメニューバーに出るメモ帳（macOS 14+、Apple Silicon、自�
 - llama.cpp のバージョン（`setup.sh` の `LLAMA_TAG`）を上げるときは、`./tools/try-rewrite.sh` で E2B と E4B の両方の推敲を試してから。speech.cpp のバージョン（`SPEECH_VERSION`）は `./tools/try-meeting.sh` で試してから
 - macOS 14.2 以降の API（Mac から出る音の取得）は `#available` で分け、14.0 でもマイクだけで動くようにする
 - アイコンは `Resources/AppIcon.svg`（16・32pt 用は `AppIcon-small.svg`）が元で、`./tools/render-app-icon.sh` で PNG と icns を作る。Poko と Mogu は同じ飴のもち（墨色の地、左上からの光、同じ輪郭と素材）で、姿勢・顔・色だけを変える（Poko は青で浮き、目を開けて口を丸くし、頭に粒が出る。Mogu は杏色で座り、目を細めてもぐもぐ噛む）。絵を変えるときは2つをそろえ、勝手に差し替えない
-- `AppController` の `mainWindow`・`meeting`・`server`・`editor`・`open(_:)` と、`MeetingSession` の `onUtterance` は、このアプリに機能を足したビルド（`App.swift` を別のエントリーポイントに替えて、ソースを一緒にコンパイルする）が使えるように開けてある。Mogu 自身は使っていなくても、閉じたり名前を変えたりしない
+- `AppController` の `mainWindow`・`meeting`・`server`・`editor`・`open(_:)`・`toggleOverlay` と、`MainWindow` の `isOverlay`、`MeetingSession` の `onUtterance` は、このアプリに機能を足したビルド（`App.swift` を別のエントリーポイントに替えて、ソースを一緒にコンパイルする）が使えるように開けてある。Mogu 自身は使っていなくても、閉じたり名前を変えたりしない
 - コメントとメッセージは日本語。ユーザーが後から自分で少し弄れる単純さを保つ
 - Claude Code のサンドボックスの中では Metal、`iconutil`、Chrome が動かず、`.atomic` の書き込みも拒まれる。テスト、推敲、文字起こし、描画、アイコン作りはサンドボックスの外で動かす
 - `main` は上流（inseven/thoughts）のまま。作業は `personal` ブランチ
